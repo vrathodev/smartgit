@@ -173,3 +173,7 @@ cython_debug/
 
 # Adhoc Script files
 test*.py
+
+# Logs
+*.log*
+logs/
