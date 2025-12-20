@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  
+  "formatters": {
+    "standard": {
+      "format": "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%S"
+    },
+    "detailed": {
+      "format": "[%(asctime)s] [%(name)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%S"
+    }
+  },
+  
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "level": "ERROR",
+      "formatter": "standard",
+      "stream": "ext://sys.stderr"
+    },
+    "file": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "level": "INFO",
+      "formatter": "detailed",
+      "filename": "logs/smartgit.log",
+      "maxBytes": 10485760,
+      "backupCount": 10,
+      "encoding": "utf8"
+    }
+  },
+  
+  "loggers": {
+    "smartgit": {
+      "level": "INFO",
+      "handlers": ["console", "file"],
+      "propagate": false
+    },
+    "git": {
+      "level": "ERROR",
+      "handlers": ["console", "file"],
+      "propagate": false
+    }
+  },
+  
+  "root": {
+    "level": "WARNING",
+    "handlers": ["console"]
+  }
+}
