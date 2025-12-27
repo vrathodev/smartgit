@@ -4,8 +4,9 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import errno
-import os
 import logging
+import os
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 
@@ -20,6 +21,16 @@ def assure(inParam: dict, inArg: str, ignoreError: bool = False):
             return False
         else:
             raise KeyError(f'Invalid Expression: {inParam}[{inArg}]')
+
+
+def convertToPath(inPath: str | os.PathLike[str] | Path) -> Path:
+    """Converts the given path in any representations to Path object"""
+    if isinstance(inPath, Path):
+        return inPath
+    elif isinstance(inPath, (str, os.PathLike)):
+        return Path(inPath)
+    else:
+        raise ValueError(f'inPath must be of type str, os.PathLike or Path, provided type is: {type(inPath)}')
 
 
 def createDir(inDirPath: str, inMode: int = 0o777):

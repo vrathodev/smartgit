@@ -4,6 +4,7 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import os
+from pathlib import Path
 from typing import *
 
 from git import Git
@@ -11,8 +12,7 @@ from git.exc import InvalidGitRepositoryError
 
 from smartgit._GitProperties import GitProperties
 from smartgit._SmartRepo import SmartRepo
-from smartgit.utils_internal._GenUtility import isNoneOrEmpty, createDir
-from smartgit.utils_internal._LoggingConfig import getSmartLogger
+from smartgit.utils_internal import *
 
 # Logger instance
 LOGGER = getSmartLogger()
@@ -21,14 +21,14 @@ LOGGER = getSmartLogger()
 class SmartGit(GitProperties, Git):
     def __init__(
             self,
-            inGitRoot: Optional[str] = None,
+            inGitRoot: Optional[str | os.PathLike[str] | Path] = None,
             inGitCloneRemoteURLPrefix: Optional[str] = None,
     ):
         """
         Initialize SmartGit with root directory and remote URL prefix.
 
         Args:
-            inGitRoot (Optional[str]):
+            inGitRoot (Optional[str | os.PathLike[str] | Path]):
                 Base directory for cloning repositories.
                     1. Recognizes inGitRoot if provided
                     2. Fallbacks to env.GIT_ROOT
@@ -42,29 +42,26 @@ class SmartGit(GitProperties, Git):
         GitProperties.__init__(self, inGitRoot, inGitCloneRemoteURLPrefix)
         Git.__init__(self)
 
-        self.__mRepos: Set[SmartRepo] = self.__init_repos()
+        self.__mRepos: Set[SmartRepo] = set(SmartGit.filter_repos(self.GitRoot))
         LOGGER.debug(f'Initialized SmartGit at {self.GitRoot} with {len(self.repositories)} repositories')
 
     @property
     def repositories(self) -> FrozenSet[SmartRepo]:
         return frozenset(self.__mRepos)
 
-    def clone(
-            self, inRepoName: str, inBranch: str = 'main', initSubmodules: bool = False
-    ) -> SmartRepo:
+    def clone(self, inRepoName: str, inBranch: str = 'main', initSubmodules: bool = False) -> SmartRepo:
         """
         Clone a repository from the configured remote URL prefix.
 
         :param inRepoName:          Name of the repository to clone
         :param inBranch:            Branch to check out after cloning. (optional) Defaults to 'main'
         :param initSubmodules:      Whether to initialize submodules after cloning. (optional) Defaults to False
-        :return: GitPython Repo instance for the cloned repository
         :raises Exception: If clone operation fails
         """
-        LOGGER.entrance('SmartGit.clone')
+        LOGGER.entrance()
 
         assert not isNoneOrEmpty(self.GitCloneRemoteURLPrefix)
-        repo: SmartRepo = SmartGit.clone_from(
+        repo: SmartRepo = SmartRepo.smart_init(
             inRepoName,
             self.GitRoot,
             self.GitCloneRemoteURLPrefix,
@@ -74,72 +71,42 @@ class SmartGit(GitProperties, Git):
         self.__mRepos.add(repo)
         return repo
 
-    def __init_repos(self) -> Set[SmartRepo]:
+    @classmethod
+    def filter_repos(
+            cls,
+            inGitRoot: str | os.PathLike[str] | Path,
+            inFilter: Callable[[SmartRepo], bool] = lambda x: x
+    ) -> List[SmartRepo]:
         """
-        Initializes the local repositories under the GIT_ROOT directory.
+        Finds all the valid Git repositories under the given root directory.
+        :param inGitRoot:       Root directory to search for Git repositories
+        :param inFilter:        [Optional] Function to filter-out repositories
         """
-        repos: Set[SmartRepo] = set()
+        LOGGER.entrance()
 
-        for repoName in os.listdir(self.GitRoot):
-            repoPath = os.path.join(self.GitRoot, repoName)
+        if isNoneOrEmpty(inGitRoot):
+            raise ValueError('inGitRoot cannot be None or Empty')
+        if not callable(inFilter):
+            raise ValueError('inFilter must be a callable function')
+
+        gitRoot = convertToPath(inGitRoot)
+        if not (gitRoot.exists() and gitRoot.is_dir()):
+            raise ValueError(f'`{inGitRoot}` is not a valid directory path')
+
+        repos: List[SmartRepo] = list()
+
+        for repoName in gitRoot.iterdir():
+            repoPath = gitRoot / repoName
 
             try:
-                repos.add(SmartRepo(repoPath))
-                LOGGER.debug('Found repository: %s', repoPath)
+                repo = SmartRepo(repoPath)
+                if not inFilter(repoPath):
+                    LOGGER.warning(f'`repo.{repo.name}` is filtered-out by the given filter')
+                    continue
+                repos.append(repo)
+                LOGGER.debug(f'Found repository: {repoPath}')
             except InvalidGitRepositoryError:
-                LOGGER.warning('Invalid Git repository at: %s', repoPath)
+                LOGGER.warning(f'Invalid Git repository {repoPath}, skipping...')
                 continue
 
         return repos
-
-    @classmethod
-    def clone_from(
-            cls,
-            inRepoName: str,
-            inDestinationPath: str,
-            inRemoteURLPrefix: str,
-            inBranch: str = 'main',
-            initSubmodules: bool = False,
-    ) -> SmartRepo:
-        """
-        Clone a repository from the given remote URL prefix.
-
-        :param inRepoName:          Name of the repository to clone
-        :param inDestinationPath:   Local path where repo will be cloned before inRepoName appending.
-        :param inRemoteURLPrefix:   Remote URL prefix to use for cloning.
-        :param inBranch:            Branch to check out after cloning. (optional) Defaults to 'main'
-        :param initSubmodules:      Whether to initialize submodules after cloning. (optional) Defaults to False
-        :return: GitPython Repo instance for the cloned repository
-        :raises Exception: If clone operation fails
-        """
-        LOGGER.entrance('SmartGit::clone_from')
-
-        if any(
-                isNoneOrEmpty(param)
-                for param in [inRepoName, inDestinationPath, inRemoteURLPrefix, inBranch]
-        ):
-            raise ValueError('ERROR: Required param can not be None or empty')
-
-        inRepoName = inRepoName.strip()
-        inBranch = inBranch.strip()
-        inDestinationPath = inDestinationPath.strip()
-        inRemoteURLPrefix = inRemoteURLPrefix.strip()
-
-        createDir(inDestinationPath)
-
-        repoPath: str = os.path.join(inDestinationPath, inRepoName)
-        if SmartRepo.is_valid(repoPath):
-            repo = SmartRepo(repoPath)
-            LOGGER.info(f'`{repoPath}` already exists. Skipping clone...')
-        else:
-            repo = SmartRepo.clone_from(
-                url=f'{inRemoteURLPrefix}/{inRepoName}.git',
-                to_path=os.path.join(inDestinationPath, inRepoName),
-            )
-            LOGGER.info(f'Cloned `{repoPath}` successfully')
-
-        repo.git.execute(['git', 'checkout', inBranch])
-        if initSubmodules:
-            repo.git.execute(['git', 'submodule', 'update', '--init', '--recursive'])
-
-        return repo
