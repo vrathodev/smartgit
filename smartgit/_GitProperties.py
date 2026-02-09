@@ -67,7 +67,7 @@ class GitProperties:
         :param inRepoPath: Repository path (relative or absolute) in string, PathLike or Path representation
         """
         if isNoneOrEmpty(inRepoPath):
-            raise ValueError('inRepoPath cannot be None or Empty')
+            raise ValueError(f'{inRepoPath=} cannot be None or Empty')
 
         repoPath = convertToPath(inRepoPath)
         repoPath = repoPath if repoPath.is_absolute() else self.GitRoot / repoPath
