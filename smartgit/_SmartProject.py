@@ -54,7 +54,7 @@ class SmartProject(GitProperties):
         :raises InvalidGitRepositoryError: If the provided path is not a valid Git repository
         """
         if isNoneOrEmpty(inRepo):
-            raise ValueError('inRepo cannot be None or Empty')
+            raise ValueError(f'{inRepo=} cannot be None or Empty')
 
         self.__mRepos.add(
             inRepo if isinstance(inRepo, SmartRepo) else SmartRepo(self.make_repo_path(inRepo))
@@ -67,13 +67,13 @@ class SmartProject(GitProperties):
         :param inRepo: Repository name, path, or SmartRepo instance
         """
         if isNoneOrEmpty(inRepo):
-            raise ValueError('inRepo cannot be None or Empty')
+            raise ValueError(f'{inRepo=} cannot be None or Empty')
 
         if isinstance(inRepo, SmartRepo):
             self.__mRepos.discard(inRepo)
             return
 
-        repoName = self.make_repo_path(inRepo).name
+        repoName: str = self.make_repo_path(inRepo).name
         for repo in self.__mRepos:
             if repo.name == repoName:
                 self.__mRepos.discard(repo)
@@ -85,7 +85,7 @@ class SmartProject(GitProperties):
             inRepos: List[str | PathLike[str] | Path | SmartRepo],
             inDestinationPath: str | PathLike[str] | Path,
             inRemoteURLPrefix: str,
-            inBranch: str = 'main',
+            inBranch: str = None,
             initSubmodules: bool = False
     ) -> 'SmartProject':
         """
@@ -97,7 +97,9 @@ class SmartProject(GitProperties):
         :param inRepos:             List of repository names/paths or SmartRepo instances
         :param inDestinationPath:   Base directory to locate or clone the given repository
         :param inRemoteURLPrefix:   Remote URL prefix to use for cloning.
-        :param inBranch:            Branch to check out (optional) Defaults to 'main'
+        :param inBranch:            Branch to check out (optional)
+                                    Defaults to remote and local HEAD
+                                    for new and existing repositories respectively if not specified
         :param initSubmodules:      Whether to initialize submodules (optional) Defaults to False
         :raises Exception: If clone operation fails
         """

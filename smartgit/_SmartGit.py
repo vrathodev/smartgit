@@ -49,18 +49,22 @@ class SmartGit(GitProperties, Git):
     def repositories(self) -> FrozenSet[SmartRepo]:
         return frozenset(self.__mRepos)
 
-    def clone(self, inRepoName: str, inBranch: str = 'main', initSubmodules: bool = False) -> SmartRepo:
+    def clone(self, inRepoName: str, inBranch: str = None, initSubmodules: bool = False) -> SmartRepo:
         """
         Clone a repository from the configured remote URL prefix.
 
         :param inRepoName:          Name of the repository to clone
-        :param inBranch:            Branch to check out after cloning. (optional) Defaults to 'main'
+        :param inBranch:            Branch to check out (optional)
+                                    Defaults to remote and local HEAD
+                                    for new and existing repositories respectively if not specified
         :param initSubmodules:      Whether to initialize submodules after cloning. (optional) Defaults to False
         :raises Exception: If clone operation fails
         """
         LOGGER.entrance()
 
-        assert not isNoneOrEmpty(self.GitCloneRemoteURLPrefix)
+        if isNoneOrEmpty(self.GitCloneRemoteURLPrefix):
+            raise ValueError(f'GitCloneRemoteURLPrefix MUST be set to perform clone operation')
+
         repo: SmartRepo = SmartRepo.smart_init(
             inRepoName,
             self.GitRoot,
@@ -85,23 +89,23 @@ class SmartGit(GitProperties, Git):
         LOGGER.entrance()
 
         if isNoneOrEmpty(inGitRoot):
-            raise ValueError('inGitRoot cannot be None or Empty')
+            raise ValueError(f'{inGitRoot=} cannot be None or Empty')
         if not callable(inFilter):
-            raise ValueError('inFilter must be a callable function')
+            raise ValueError(f'{inFilter=} must be a callable function')
 
-        gitRoot = convertToPath(inGitRoot)
+        gitRoot: Path = convertToPath(inGitRoot)
         if not (gitRoot.exists() and gitRoot.is_dir()):
-            raise ValueError(f'`{inGitRoot}` is not a valid directory path')
+            raise ValueError(f'`{inGitRoot=}` is not a valid directory path')
 
         repos: List[SmartRepo] = list()
 
         for repoName in gitRoot.iterdir():
-            repoPath = gitRoot / repoName
+            repoPath: Path = gitRoot / repoName
 
             try:
                 repo = SmartRepo(repoPath)
-                if not inFilter(repoPath):
-                    LOGGER.warning(f'`repo.{repo.name}` is filtered-out by the given filter')
+                if not inFilter(repo):
+                    LOGGER.warning(f'`{repo.name}` is filtered-out by the given filter')
                     continue
                 repos.append(repo)
                 LOGGER.debug(f'Found repository: {repoPath}')
