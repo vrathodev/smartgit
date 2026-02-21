@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import *
 
-from smartgit.utils_internal import *
+from smartgit.utils import *
 
 # Logger instance
 LOGGER = getSmartLogger()

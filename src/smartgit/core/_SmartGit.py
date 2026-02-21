@@ -10,9 +10,9 @@ from typing import *
 from git import Git
 from git.exc import InvalidGitRepositoryError
 
-from smartgit._GitProperties import GitProperties
-from smartgit._SmartRepo import SmartRepo
-from smartgit.utils_internal import *
+from smartgit.core._GitProperties import GitProperties
+from smartgit.core._SmartRepo import SmartRepo
+from smartgit.utils import *
 
 # Logger instance
 LOGGER = getSmartLogger()

@@ -12,9 +12,9 @@ from logging.config import dictConfig
 from pathlib import Path
 from typing import *
 
-from smartgit.utils_internal._GenUtility import isNoneOrEmpty, createDir
+from smartgit.utils._GenUtility import isNoneOrEmpty, createDir
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+CWD = Path.cwd().resolve()
 
 
 class SmartLogger(logging.Logger):
@@ -34,7 +34,7 @@ class SmartLogger(logging.Logger):
     DATE_FORMAT: str = '%Y-%m-%d %H:%M:%S'
     # Customizable via environment variable
     LOG_LEVEL: str = logging.DEBUG
-    LOG_PATH: str = BASE_DIR / 'logs' / 'smartgit.log'
+    LOG_PATH: str = CWD / 'logs' / 'smartgit.log'
 
     def __init__(self, name: str, level: int = logging.NOTSET):
         super().__init__(name, level)
@@ -147,7 +147,7 @@ def configSmartLogger() -> SmartLogger:
 
     log_config_path = os.environ.get(SmartLogger.ENV_LOGGING_CONFIG, '').strip()
     log_config_path = os.path.abspath(
-        log_config_path if log_config_path else os.path.join(BASE_DIR, 'logging.config.json')
+        log_config_path if log_config_path else os.path.join(CWD, 'logging.config.json')
     )
 
     logger = None
