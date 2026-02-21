@@ -7,9 +7,9 @@ from os import PathLike
 from pathlib import Path
 from typing import *
 
-from smartgit._GitProperties import GitProperties
-from smartgit._SmartRepo import SmartRepo
-from smartgit.utils_internal import *
+from smartgit.core._GitProperties import GitProperties
+from smartgit.core._SmartRepo import SmartRepo
+from smartgit.utils import *
 
 # Logger instance
 LOGGER = getSmartLogger()
