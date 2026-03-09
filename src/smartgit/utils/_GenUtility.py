@@ -65,6 +65,18 @@ def isNoneOrEmpty(inVal) -> bool:
         return isNoneOrEmpty(str(inVal).strip())
 
 
+def readFile(inPath: Path, inMode: Optional[str] = 'r', inEncoding: Optional[str] = None) -> str | None:
+    """
+    Reads the content of the file
+
+    :throws FileNotFoundError if the file does not exist, IOError for other I/O errors
+    """
+    with open(inPath, mode=inMode, encoding=inEncoding) as file:
+        content = file.read()
+
+    return content
+
+
 def validateEnvVariable(
         inVarName: str,
         inValidator: Callable[..., Any] = lambda x: not isNoneOrEmpty(x),
