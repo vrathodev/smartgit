@@ -100,6 +100,39 @@ class SmartProject(GitProperties):
                 self.__mRepos.discard(repo)
                 break
 
+    def fetch(
+            self,
+            inRemote: Optional[str] = None,
+            inBranch: Optional[str] = None,
+            inSkipTags: bool = False
+    ):
+        """
+        Fetches from the remote(s) (sync)
+        :param inRemote: [Optional] Name of the remote, default fetches from all remotes
+        :param inBranch: [Optional] Name of the branch, default fetches from all branches
+        :param inSkipTags: [Optional] Should skip fetching the tags
+        """
+        LOGGER.entrance()
+
+        for repo in self.repositories:
+            repo.fetch(inRemote, inBranch, inSkipTags)
+
+    async def afetch(
+            self,
+            inRemote: Optional[str] = None,
+            inBranch: Optional[str] = None,
+            inSkipTags: bool = False
+    ):
+        """
+        Fetches from the remote(s) (async)
+        :param inRemote: [Optional] Name of the remote, default fetches from all remotes
+        :param inBranch: [Optional] Name of the branch, default fetches from all branches
+        :param inSkipTags: [Optional] Should skip fetching the tags
+        """
+        LOGGER.entrance()
+
+        await asyncio.gather(*(repo.afetch(inRemote, inBranch, inSkipTags) for repo in self.repositories))
+
     def prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
         """
         Prunes branches and/or tags.

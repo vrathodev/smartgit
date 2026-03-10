@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import FrozenSet, List, Generator, Any, Callable, Coroutine
+from typing import FrozenSet, List, Generator, Any, Callable, Coroutine, Optional
 
 from git import Repo, CommandError
 
@@ -277,6 +277,63 @@ class SmartRepo(Repo):
             self._delete_branch(inBranchName, inFromRemote, inRemoteName, inForce),
             self.aexecute
         )
+
+    def _fetch(
+            self,
+            inRemote: Optional[str] = None,
+            inBranch: Optional[str] = None,
+            inSkipTags: bool = False
+    ):
+        """
+        Fetches from the remote(s)
+        :param inRemote: [Optional] Name of the remote, default fetches from all remotes
+        :param inBranch: [Optional] Name of the branch, default fetches from all branches
+        :param inSkipTags: [Optional] Should skip fetching the tags
+        """
+        LOGGER.entrance()
+        command = ['git', 'fetch']
+
+        if isNoneOrEmpty(inRemote):
+            command.append('--all')
+            command.extend(['-j', str(len(self.remotes))])
+        if not isNoneOrEmpty(inBranch):
+            command.append(inBranch.strip())
+        if inSkipTags:
+            command.append('--no-tags')
+
+        yield GitCMD(command)
+
+    def fetch(
+            self,
+            inRemote: Optional[str] = None,
+            inBranch: Optional[str] = None,
+            inSkipTags: bool = False
+    ):
+        """
+        Fetches from the remote(s)
+        :param inRemote: [Optional] Name of the remote, default fetches from all remotes
+        :param inBranch: [Optional] Name of the branch, default fetches from all branches
+        :param inSkipTags: [Optional] Should skip fetching the tags
+        """
+        LOGGER.entrance()
+
+        return self._run_sync_command(self._fetch(inRemote, inBranch, inSkipTags), self.execute)
+
+    async def afetch(
+            self,
+            inRemote: Optional[str] = None,
+            inBranch: Optional[str] = None,
+            inSkipTags: bool = False
+    ):
+        """
+        Fetches from the remote(s) (async)
+        :param inRemote: [Optional] Name of the remote, default fetches from all remotes
+        :param inBranch: [Optional] Name of the branch, default fetches from all branches
+        :param inSkipTags: [Optional] Should skip fetching the tags
+        """
+        LOGGER.entrance()
+
+        return await self._run_async_command(self._fetch(inRemote, inBranch, inSkipTags), self.aexecute)
 
     def _prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
         """
