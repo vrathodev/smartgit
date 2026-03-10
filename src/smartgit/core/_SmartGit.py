@@ -51,6 +51,7 @@ class SmartGit(GitProperties, Git):
 
     def clone(self, inRepoName: str, inBranch: str = None, initSubmodules: bool = False) -> SmartRepo:
         """
+        TODO: UNUSED -- Remove later?
         Clone a repository from the configured remote URL prefix.
 
         :param inRepoName:          Name of the repository to clone
