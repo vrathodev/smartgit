@@ -11,7 +11,7 @@ from os import PathLike
 from pathlib import Path
 from typing import FrozenSet, List, Generator, Any, Callable, Coroutine, Optional
 
-from git import Repo, CommandError
+from git import Repo, GitCommandError
 
 from smartgit.utils import *
 
@@ -104,7 +104,7 @@ class SmartRepo(Repo):
             errorStr: str = error.decode().strip()
             LOGGER.error(f'Error (RC {returnCode}):')
             LOGGER.error(errorStr)
-            raise CommandError(' '.join(command), returnCode, errorStr)
+            raise GitCommandError(' '.join(command), returnCode, errorStr)
 
     def _create_branch(
             self,
@@ -231,16 +231,13 @@ class SmartRepo(Repo):
             LOGGER.warning(f'`{inBranchName=}` does not exist locally. Skipping local deletion.')
 
         if inFromRemote:
-            if f'{inRemoteName}/{inBranchName}' in self.remote_branches:
-                yield GitCMD([
-                    'git',
-                    'push',
-                    inRemoteName,
-                    '--delete',
-                    inBranchName,
-                ])
-            else:
-                LOGGER.warning(f'`{inBranchName=}` does not exist in remote. Skipping remote deletion.')
+            yield GitCMD([
+                'git',
+                'push',
+                inRemoteName,
+                '--delete',
+                inBranchName,
+            ])
 
     def delete_branch(
             self,
