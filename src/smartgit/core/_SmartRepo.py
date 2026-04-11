@@ -141,13 +141,13 @@ class SmartRepo(Repo):
             return
         if not self.is_valid_object(inStartPoint):
             LOGGER.exception(f'`{inStartPoint=}` is NOT a valid reference. Aborting branch creation.')
-            raise Exception('`{inStartPoint=}` is NOT a valid reference.')
+            raise Exception(f'`{inStartPoint=}` is NOT a valid reference.')
 
         yield GitCMD([
             'git',
             'branch',
-            inBranchName.strip(),
-            inStartPoint.strip(),
+            inBranchName,
+            inStartPoint,
         ])
         LOGGER.info(f'`{inBranchName=}` created successfully from `{inStartPoint=}` in local')
 
@@ -175,6 +175,8 @@ class SmartRepo(Repo):
         :param inPushRemote:    Whether to push the new branch to remote (optional) Defaults to False
         :param inRemoteName:    Name of the remote to push to (optional) Defaults to 'origin'
         """
+        LOGGER.entrance()
+
         return self._run_sync_command(
             self._create_branch(inBranchName, inStartPoint, inPushRemote, inRemoteName),
             self.execute
@@ -194,6 +196,8 @@ class SmartRepo(Repo):
         :param inPushRemote:    Whether to push the new branch to remote (optional) Defaults to False
         :param inRemoteName:    Name of the remote to push to (optional) Defaults to 'origin'
         """
+        LOGGER.entrance()
+
         return await self._run_async_command(
             self._create_branch(inBranchName, inStartPoint, inPushRemote, inRemoteName),
             self.aexecute
@@ -252,6 +256,8 @@ class SmartRepo(Repo):
         :param inRemoteName:    Name of the remote to delete from (optional) Defaults to 'origin'
         :param inForce:         Whether to force delete the branch (optional) Defaults to False
         """
+        LOGGER.entrance()
+
         return self._run_sync_command(
             self._delete_branch(inBranchName, inFromRemote, inRemoteName, inForce),
             self.execute
@@ -270,6 +276,8 @@ class SmartRepo(Repo):
         :param inRemoteName:    Name of the remote to delete from (optional) Defaults to 'origin'
         :param inForce:         Whether to force delete the branch (optional) Defaults to False
         """
+        LOGGER.entrance()
+
         return await self._run_async_command(
             self._delete_branch(inBranchName, inFromRemote, inRemoteName, inForce),
             self.aexecute
@@ -278,23 +286,22 @@ class SmartRepo(Repo):
     def _fetch(
             self,
             inRemote: Optional[str] = None,
-            inBranch: Optional[str] = None,
             inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s)
         :param inRemote: [Optional] Name of the remote, default fetches from all remotes
-        :param inBranch: [Optional] Name of the branch, default fetches from all branches
         :param inSkipTags: [Optional] Should skip fetching the tags
         """
         LOGGER.entrance()
-        command = ['git', 'fetch']
 
+        command = ['git', 'fetch']
         if isNoneOrEmpty(inRemote):
             command.append('--all')
-            command.extend(['-j', str(len(self.remotes))])
-        if not isNoneOrEmpty(inBranch):
-            command.append(inBranch.strip())
+            # TODO: Define an env/config property for no. of parallel jobs
+            command.extend(['--jobs', '5'])
+        else:
+            command.append(inRemote.strip())
         if inSkipTags:
             command.append('--no-tags')
 
@@ -303,34 +310,30 @@ class SmartRepo(Repo):
     def fetch(
             self,
             inRemote: Optional[str] = None,
-            inBranch: Optional[str] = None,
             inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s)
         :param inRemote: [Optional] Name of the remote, default fetches from all remotes
-        :param inBranch: [Optional] Name of the branch, default fetches from all branches
         :param inSkipTags: [Optional] Should skip fetching the tags
         """
         LOGGER.entrance()
 
-        return self._run_sync_command(self._fetch(inRemote, inBranch, inSkipTags), self.execute)
+        return self._run_sync_command(self._fetch(inRemote, inSkipTags), self.execute)
 
     async def afetch(
             self,
             inRemote: Optional[str] = None,
-            inBranch: Optional[str] = None,
             inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s) (async)
         :param inRemote: [Optional] Name of the remote, default fetches from all remotes
-        :param inBranch: [Optional] Name of the branch, default fetches from all branches
         :param inSkipTags: [Optional] Should skip fetching the tags
         """
         LOGGER.entrance()
 
-        return await self._run_async_command(self._fetch(inRemote, inBranch, inSkipTags), self.aexecute)
+        return await self._run_async_command(self._fetch(inRemote, inSkipTags), self.aexecute)
 
     def _prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
         """
@@ -358,6 +361,8 @@ class SmartRepo(Repo):
         :param inPruneBranches:     Whether to prune branches. (optional) Defaults to False
         :param inPruneTags:         Whether to prune tags. (optional) Defaults to False
         """
+        LOGGER.entrance()
+
         return self._run_sync_command(self._prune(inPruneBranches, inPruneTags), self.execute)
 
     async def aprune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
@@ -367,6 +372,8 @@ class SmartRepo(Repo):
         :param inPruneBranches:     Whether to prune branches. (optional) Defaults to False
         :param inPruneTags:         Whether to prune tags. (optional) Defaults to False
         """
+        LOGGER.entrance()
+
         return await self._run_async_command(self._prune(inPruneBranches, inPruneTags), self.aexecute)
 
     def _pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
@@ -391,9 +398,6 @@ class SmartRepo(Repo):
         inBranchName = inBranchName.strip()
         inRemoteName = inRemoteName.strip()
 
-        if f'{inRemoteName}/{inBranchName}' not in self.remote_branches:
-            LOGGER.warning(f'`{inBranchName=}` does not exist on {inRemoteName=}. Aborting sync operation.')
-            return
         if inBranchName not in self.branches:
             LOGGER.warning(f'`{inBranchName=}` does not exist locally, attempting to checkout from remote...')
             yield GitCMD([
@@ -419,6 +423,9 @@ class SmartRepo(Repo):
         :param inBranchName:    Name of the branch to sync, defaults to current active branch if None (optional)
         :param inRemoteName:    Name of the remote to sync with, defaults to 'origin' (optional)
         """
+        LOGGER.entrance()
+
+        self.fetch(inRemoteName, inSkipTags=True)
         return self._run_sync_command(
             self._pull(inBranchName, inRemoteName),
             self.execute
@@ -431,6 +438,9 @@ class SmartRepo(Repo):
         :param inBranchName:    Name of the branch to sync, defaults to current active branch if None (optional)
         :param inRemoteName:    Name of the remote to sync with, defaults to 'origin' (optional)
         """
+        LOGGER.entrance()
+
+        await self.afetch(inRemoteName, inSkipTags=True)
         return await self._run_async_command(
             self._pull(inBranchName, inRemoteName),
             self.aexecute
@@ -502,7 +512,8 @@ class SmartRepo(Repo):
             inBranch = inBranch.strip()
             repo.execute(['git', 'switch', inBranch])
         if initSubmodules:
-            repo.execute(['git', 'submodule', 'update', '--init', '--recursive'])
+            # TODO: Define an env/config property for no. of parallel jobs
+            repo.execute(['git', 'submodule', 'update', '--init', '--recursive', '--jobs', '5'])
 
         return repo
 

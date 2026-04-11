@@ -54,6 +54,8 @@ class SmartProject(GitProperties):
         :param inRepo: Repository name, path, or SmartRepo instance
         :return: The matching SmartRepo instance if found, otherwise None
         """
+        LOGGER.entrance()
+
         if isNoneOrEmpty(inRepo):
             raise ValueError(f'{inRepo=} cannot be None or Empty')
 
@@ -74,6 +76,8 @@ class SmartProject(GitProperties):
         :param inRepo: Repository name, path, or SmartRepo instance
         :raises InvalidGitRepositoryError: If the provided path is not a valid Git repository
         """
+        LOGGER.entrance()
+
         if isNoneOrEmpty(inRepo):
             raise ValueError(f'{inRepo=} cannot be None or Empty')
 
@@ -87,6 +91,8 @@ class SmartProject(GitProperties):
 
         :param inRepo: Repository name, path, or SmartRepo instance
         """
+        LOGGER.entrance()
+
         if isNoneOrEmpty(inRepo):
             raise ValueError(f'{inRepo=} cannot be None or Empty')
 
@@ -115,7 +121,7 @@ class SmartProject(GitProperties):
         LOGGER.entrance()
 
         for repo in self.repositories:
-            repo.fetch(inRemote, inBranch, inSkipTags)
+            repo.fetch(inRemote, inSkipTags)
 
     async def afetch(
             self,
@@ -131,7 +137,7 @@ class SmartProject(GitProperties):
         """
         LOGGER.entrance()
 
-        await asyncio.gather(*(repo.afetch(inRemote, inBranch, inSkipTags) for repo in self.repositories))
+        await asyncio.gather(*(repo.afetch(inRemote, inSkipTags) for repo in self.repositories))
 
     def prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
         """
