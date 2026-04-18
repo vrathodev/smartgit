@@ -1,5 +1,5 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""" @file Utils/_LoggingConfig.py                                                                                    """
+""" @file smartgit.utils._LoggingConfig.py                                                                           """
 """ Contains logging configuration and utility functions for consistent logging across the project                   """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
