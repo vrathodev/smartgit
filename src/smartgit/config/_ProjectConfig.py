@@ -5,23 +5,23 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic.fields import Field
-from pydantic_settings import SettingsConfigDict
 
-from smartgit.config._RepoConfig import RepoConfig
 from smartgit.config._Properties import Properties
+from smartgit.config._RepoConfig import RepoConfig
 
 
 class ProjectConfig(BaseModel):
     """
     ProjectConfig -- Configuration settings for a SmartGit project
     """
-    model_config = SettingsConfigDict(
-        case_sensitive=False,
-        env_prefix='GIT_',
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        cache_strings=True,
         extra='ignore',
-        frozen=True
+        frozen=True,
+        str_strip_whitespace=True,
     )
 
     repos: Optional[dict[str, Optional[RepoConfig]]] = Field(

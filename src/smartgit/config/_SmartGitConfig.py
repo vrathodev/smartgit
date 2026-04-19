@@ -8,9 +8,8 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from dotenv import dotenv_values
 from pydantic import model_validator
-from pydantic.fields import Field, FieldInfo
+from pydantic.fields import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource, JsonConfigSettingsSource
 
 from smartgit.common.constants import (
@@ -25,34 +24,6 @@ from smartgit.utils import getSmartLogger, isNoneOrEmpty
 LOGGER = getSmartLogger()
 
 
-class PropertiesSettingEnvSource(PydanticBaseSettingsSource):
-    """
-    Custom Properties Environment Settings source
-    """
-
-    def __call__(self) -> dict[str, Any]:
-        """
-        Custom settings source exclusive for reading properties through env & .env
-
-        Environment variables takes higher precedence over those defined in dotenv file
-        """
-        LOGGER.entrance()
-        envFile: Path = Path(self.config.get('env_file', SG_VAL_DOTENV_PATH_DEFAULT))
-        props: dict[str, Any] = dict()
-
-        dotEnv = dotenv_values(envFile)
-        for prop in Properties.model_fields.keys():
-            if os.getenv(prop) is not None:
-                props[prop] = os.getenv(prop)
-            elif dotEnv.get(prop) is not None:
-                props[prop] = dotEnv.get(prop)
-
-        return {'properties': props}
-
-    def get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
-        pass
-
-
 class SmartGitConfig(BaseSettings):
     """
     SmartGitConfig -- Configuration master settings for SmartGit
@@ -60,15 +31,16 @@ class SmartGitConfig(BaseSettings):
     model_config = SettingsConfigDict(
         case_sensitive=False,
         env_prefix='GIT_',
+        env_nested_delimiter='',
         env_file=Path(os.getenv(SG_KEY_DOTENV_PATH, SG_VAL_DOTENV_PATH_DEFAULT)).resolve(),
         json_file=Path(os.getenv(SG_KEY_CONFIG_PATH, SG_VAL_CONFIG_PATH_DEFAULT)).resolve(),
         extra='ignore',
-        frozen=True
+        frozen=True,
     )
 
     repos: Optional[dict[str, Optional[RepoConfig]]] = Field(
         description='Repository names -> associated configurations mapping',
-        default_factory=dict
+        default_factory=dict,
     )
     projects: Optional[dict[str, Optional[ProjectConfig]]] = Field(
         description='Project names -> associated configurations mapping',
@@ -76,8 +48,53 @@ class SmartGitConfig(BaseSettings):
     )
     properties: Properties = Field(
         description='Global properties applicable to all repositories & projects, takes lower precedence over the project/repo-specific properties',
-        default_factory=Properties,
+        default_factory=Properties
     )
+
+    def get_project_config(self, inProjectName: str) -> Optional[ProjectConfig]:
+        """
+        Retrieves the associated Project config from the Project name
+        :param inProjectName: The Project name
+        """
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} can not be None or empty')
+
+        return self.projects.get(inProjectName.strip())
+
+    def get_repo_config(self, inRepoName: str) -> Optional[RepoConfig]:
+        """
+        Retrieves the associated Repo config from the Repo name
+        :param inRepoName: The Repo name
+        """
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inRepoName):
+            raise ValueError(f'{inRepoName=} can not be None or empty')
+
+        inRepoName = inRepoName.strip()
+        repoConfig: Optional[RepoConfig] = None
+        if not isNoneOrEmpty(self.repos) and not isNoneOrEmpty(self.repos.get(inRepoName)):
+            return self.repos.get(inRepoName)
+        LOGGER.debug(f'{inRepoName} is not specified in the global `repos` section, checking in `Projects` section')
+
+        matchProject: str = None
+        for name, projectConfig in self.projects.items():
+            if not (isNoneOrEmpty(projectConfig) or
+                    isNoneOrEmpty(projectConfig.repos) or
+                    isNoneOrEmpty(projectConfig.repos.get(inRepoName))):
+                if isNoneOrEmpty(matchProject):
+                    matchProject = name
+                    repoConfig = projectConfig.repos.get(inRepoName)
+                else:
+                    raise Exception(
+                        f'Can not determine the repository config source. '
+                        f'As {inRepoName} is not specified in the global `repos`, '
+                        f'but in multiple projects: {matchProject, name}'
+                    )
+
+        return repoConfig
 
     @classmethod
     def settings_customise_sources(
@@ -95,8 +112,6 @@ class SmartGitConfig(BaseSettings):
             env_settings,
             # dotenv files
             dotenv_settings,
-            # Exclusive custom settings source for properties (env vars > dotenv)
-            PropertiesSettingEnvSource(settings_cls),
             # Denotes the JSON configuration file i.e. smartgit.config.json
             JsonConfigSettingsSource(settings_cls),
             # Denotes secret files that define the settings
@@ -136,7 +151,6 @@ class SmartGitConfig(BaseSettings):
 
         if isNoneOrEmpty(globalProps) or not isinstance(globalProps, dict):
             LOGGER.debug('Invalid/empty global `properties` configured')
-            return inRawConfig
 
         # Merge/propagate the global props to that of the global repos
         for name, repoConfig in globalRepos.items():
@@ -154,9 +168,9 @@ class SmartGitConfig(BaseSettings):
             LOGGER.debug('Invalid/empty global `projects` configured')
             return inRawConfig
 
-        for name, projectConfig in globalProjects.items():
+        for projectName, projectConfig in globalProjects.items():
             if isNoneOrEmpty(projectConfig) or not isinstance(projectConfig, dict):
-                LOGGER.debug(f'Invalid/empty `projects.{name}` configured')
+                LOGGER.debug(f'Invalid/empty `projects.{projectName}` configured')
                 continue
 
             # Resolving project level repos
@@ -165,40 +179,43 @@ class SmartGitConfig(BaseSettings):
             projectRepoNames: list[str] = list()
             if isNoneOrEmpty(projectRepos):
                 if isinstance(projectRepos, list) or isinstance(projectRepos, dict):
-                    LOGGER.debug(f'No `projects.{name}.repos` repositories configured in the loaded config')
+                    LOGGER.debug(f'No `projects.{projectName}.repos` repositories configured in the loaded config')
                 else:
-                    LOGGER.debug(f'Invalid `projects.{name}.repos` configured')
+                    LOGGER.debug(f'Invalid `projects.{projectName}.repos` configured')
                     return inRawConfig
             elif isinstance(projectRepos, list):
                 # Allows repo-names to be configured as list while read as intended
-                LOGGER.debug(f'projects.{name}.repos are configured as list, converting into the dict...')
+                LOGGER.debug(f'`projects.{projectName}.repos` are configured as list, converting into the dict...')
                 projectRepoNames.extend(projectRepos)
                 projectRepos: dict[str, Any] = dict()
-                for name in projectRepoNames:
-                    projectRepos[name] = None
+                for repoName in projectRepoNames:
+                    projectRepos[repoName] = None
                 projectConfig['repos'] = projectRepos
 
             if isNoneOrEmpty(projectProps) or not isinstance(projectProps, dict):
-                LOGGER.debug('Invalid/empty global `properties` configured')
-                return inRawConfig
+                LOGGER.debug(f'Invalid/empty `projects.{projectName}.properties` configured')
 
             resolvedProjectProps = Properties.merge(projectProps, globalProps)
             projectConfig['properties'] = resolvedProjectProps
 
             # Merge/propagate the project props to that of the project repos
-            for name, repoConfig in projectRepos.items():
-                globalRepoConfig = globalRepos.get(name)
+            for repoName, repoConfig in projectRepos.items():
+                globalRepoConfig = globalRepos.get(repoName)
                 if repoConfig is None:
                     if not isNoneOrEmpty(globalRepoConfig):
                         # Reuse the global repo config as fallback
                         repoConfig = copy.deepcopy(globalRepoConfig)
-                        projectRepos[name] = repoConfig
+                        projectRepos[repoName] = repoConfig
                     else:
                         repoConfig: dict['str', Any] = dict()
                         repoConfig['properties'] = None
 
                 repoProps: Optional[dict[str, Any]] = repoConfig.get('properties')
                 repoConfig['properties'] = Properties.merge(repoProps, resolvedProjectProps)
-                projectRepos[name] = repoConfig
+                projectRepos[repoName] = repoConfig
 
         return inRawConfig
+
+
+# Global Singleton Configuration instance
+CONFIG = SmartGitConfig()

@@ -8,10 +8,12 @@ from typing import Annotated, Any, Optional
 
 from pydantic import BaseModel, Field, PositiveInt, StringConstraints, DirectoryPath, ConfigDict, HttpUrl
 
+from smartgit.common.constants import (
+    SG_VAL_BRANCH_NAME_DEFAULT, SG_VAL_REMOTE_NAME_DEFAULT
+)
+from smartgit.common.types import SmartURL
 from smartgit.utils import getSmartLogger
 
-
-type SmartURL = str | HttpUrl
 
 LOGGER = getSmartLogger()
 
@@ -28,10 +30,11 @@ class Properties(BaseModel):
     Represents all the properties applicable to all the SmartGit primitives
     """
     model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        cache_strings=True,
+        extra='ignore',
         frozen=True,
         str_strip_whitespace=True,
-        extra='ignore',
-        validate_assignment=True
     )
 
     GIT_ROOT: Annotated[Path, DirectoryPath] = Field(
@@ -46,9 +49,14 @@ class Properties(BaseModel):
         min_length=1
     )
 
+    GIT_DEFAULT_REMOTE: Annotated[str, StringProperty] = Field(
+        description='Default remote name',
+        default=SG_VAL_REMOTE_NAME_DEFAULT
+    )
+
     GIT_DEFAULT_BRANCH: Annotated[str, StringProperty] = Field(
         description='Default branch name',
-        default='main'
+        default=SG_VAL_BRANCH_NAME_DEFAULT
     )
 
     GIT_SUBMODULE_INIT: bool = Field(

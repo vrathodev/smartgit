@@ -3,9 +3,8 @@
 """ Configurations settings model for Repository                                                                     """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic.fields import Field
-from pydantic_settings import SettingsConfigDict
 
 from smartgit.config._Properties import Properties
 
@@ -14,11 +13,12 @@ class RepoConfig(BaseModel):
     """
     RepoConfig -- Configuration settings for a SmartGit repository
     """
-    model_config = SettingsConfigDict(
-        case_sensitive=False,
-        env_prefix='GIT_',
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        cache_strings=True,
         extra='ignore',
-        frozen=True
+        frozen=True,
+        str_strip_whitespace=True,
     )
 
     properties: Properties = Field(
