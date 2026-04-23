@@ -6,6 +6,7 @@
 import asyncio
 from typing import *
 
+from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
 from smartgit.config import CONFIG
 from smartgit.config import ProjectConfig
 from smartgit.core._SmartRepo import SmartRepo
@@ -102,7 +103,7 @@ class SmartProject:
 
         await asyncio.gather(*(repo.aprune(inPruneBranches, inPruneTags) for repo in self.repositories))
 
-    def pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    def pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -114,7 +115,7 @@ class SmartProject:
         for repo in self.repositories:
             repo.pull(inBranchName, inRemoteName)
 
-    async def apull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    async def apull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes (async)
 

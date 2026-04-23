@@ -12,6 +12,7 @@ from typing import FrozenSet, List, Generator, Any, Callable, Coroutine, Optiona
 
 from git import Repo, GitCommandError, InvalidGitRepositoryError
 
+from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
 from smartgit.common.types import SmartPath
 from smartgit.config import CONFIG
 from smartgit.config import Properties, RepoConfig
@@ -137,7 +138,7 @@ class SmartRepo(Repo):
             inBranchName: str,
             inStartPoint: str,
             inPushRemote: bool = False,
-            inRemoteName: str = 'origin'):
+            inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Creates a new branch from the specified start point (commit hash or branch name or tag)
 
@@ -195,7 +196,7 @@ class SmartRepo(Repo):
             inBranchName: str,
             inStartPoint: str,
             inPushRemote: bool = False,
-            inRemoteName: str = 'origin'):
+            inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Creates a new branch from the specified start point (commit hash or branch name or tag)
 
@@ -216,7 +217,7 @@ class SmartRepo(Repo):
             inBranchName: str,
             inStartPoint: str,
             inPushRemote: bool = False,
-            inRemoteName: str = 'origin'):
+            inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Creates a new branch from the specified start point (commit hash or branch name or tag)
 
@@ -236,7 +237,7 @@ class SmartRepo(Repo):
             self,
             inBranchName: str,
             inFromRemote: bool = False,
-            inRemoteName: str = 'origin',
+            inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
             inForce: bool = False):
         """
         Deletes a branch locally and/or from remote.
@@ -279,7 +280,7 @@ class SmartRepo(Repo):
             self,
             inBranchName: str,
             inFromRemote: bool = False,
-            inRemoteName: str = 'origin',
+            inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
             inForce: bool = False):
         """
         Deletes a branch locally and/or from remote.
@@ -299,7 +300,7 @@ class SmartRepo(Repo):
             self,
             inBranchName: str,
             inFromRemote: bool = False,
-            inRemoteName: str = 'origin',
+            inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
             inForce: bool = False):
         """
         Deletes a branch locally and/or from remote.
@@ -407,7 +408,7 @@ class SmartRepo(Repo):
 
         return await self._run_async_command(self._prune(inPruneBranches, inPruneTags), self.aexecute)
 
-    def _pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    def _pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -447,7 +448,7 @@ class SmartRepo(Repo):
         ])
         LOGGER.info(f'Pulled {inBranchName} successfully from {inRemoteName}')
 
-    def pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    def pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -462,7 +463,7 @@ class SmartRepo(Repo):
             self.execute
         )
 
-    async def apull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    async def apull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
