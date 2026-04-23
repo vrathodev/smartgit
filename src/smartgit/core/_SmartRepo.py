@@ -1,5 +1,5 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""" @file smartgit/_SmartRepo.py                                                                                     """
+""" @file smartgit.core._SmartRepo.py                                                                                """
 """ Enhanced repository class with additional Git operations                                                         """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -7,12 +7,14 @@ import asyncio
 import os
 from dataclasses import dataclass
 from functools import cached_property
-from os import PathLike
 from pathlib import Path
-from typing import FrozenSet, List, Generator, Any, Callable, Coroutine, Optional
+from typing import FrozenSet, List, Generator, Any, Callable, Coroutine, Optional, Self
 
-from git import Repo, GitCommandError
+from git import Repo, GitCommandError, InvalidGitRepositoryError
 
+from smartgit.common.types import SmartPath
+from smartgit.config import CONFIG
+from smartgit.config import Properties, RepoConfig
 from smartgit.utils import *
 
 # Logger instance
@@ -32,9 +34,35 @@ class GitCMD:
 
 
 class SmartRepo(Repo):
+    """
+    SmartRepo -- Async + sync Git operations capable SmartGit primitive
+    """
+
+    def __init__(self, inRepoConfig: Optional[RepoConfig], **kwargs):
+        """
+        Initializes the SmartRepo with the RepoConfig
+
+        :param inRepoConfig:    [Optional] Repository configuration to initialize the SmartRepo with.
+        """
+        super().__init__(**kwargs)
+
+        self.__mRepoConfig: RepoConfig = inRepoConfig or RepoConfig()
+
+    @property
+    def config(self) -> RepoConfig:
+        return self.__mRepoConfig
+
     @property
     def name(self) -> str:
-        return os.path.basename(self.working_dir or self.working_tree_dir or '')
+        return os.path.basename(self.path)
+
+    @property
+    def path(self) -> Path:
+        return Path(self.working_dir)
+
+    @property
+    def properties(self) -> Properties:
+        return self.__mRepoConfig.properties
 
     @cached_property
     def remote_branches(self) -> FrozenSet[str]:
@@ -46,10 +74,8 @@ class SmartRepo(Repo):
         branches = set()
 
         for remote in self.remotes:
-            LOGGER.debug(f'Fetching from {remote.name=}')
             remote.fetch()
             for ref in remote.refs:
-                LOGGER.debug(f'Processing {ref.name=}')
                 branches.add(ref.name)
 
         return frozenset(branches)
@@ -85,7 +111,7 @@ class SmartRepo(Repo):
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=self.working_dir
+            cwd=self.path
         )
 
         while True:
@@ -121,6 +147,9 @@ class SmartRepo(Repo):
         :param inRemoteName:    Name of the remote to push to (optional) Defaults to 'origin'
         """
         LOGGER.entrance()
+
+        if self.properties.GIT_READONLY_MODE:
+            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
 
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
@@ -218,6 +247,9 @@ class SmartRepo(Repo):
         """
         LOGGER.entrance()
 
+        if self.properties.GIT_READONLY_MODE:
+            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
+
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
 
@@ -298,8 +330,7 @@ class SmartRepo(Repo):
         command = ['git', 'fetch']
         if isNoneOrEmpty(inRemote):
             command.append('--all')
-            # TODO: Define an env/config property for no. of parallel jobs
-            command.extend(['--jobs', '5'])
+            command.extend(['--jobs', str(self.properties.GIT_FETCH_JOBS)])
         else:
             command.append(inRemote.strip())
         if inSkipTags:
@@ -447,6 +478,33 @@ class SmartRepo(Repo):
         )
 
     @classmethod
+    def from_config(cls, inRepoName: str) -> Self:
+        """
+        Initializes a SmartRepo from the configuration for the given repository name
+
+        :param inRepoName: Name of the repository
+        :returns: The initialized SmartRepo instance
+        """
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inRepoName):
+            raise ValueError(f'{inRepoName=} cannot be None or Empty')
+
+        inRepoName = inRepoName.strip()
+        try:
+            repoConfig: RepoConfig = CONFIG.get_repo_config(inRepoName)
+            if isNoneOrEmpty(repoConfig):
+                raise Exception(f'{inRepoName} is not configured in {CONFIG.get_master_config_source()}')
+        except Exception as e:
+            LOGGER.exception(e)
+            raise
+
+        return cls(
+            path=repoConfig.properties.GIT_ROOT / inRepoName,
+            inRepoConfig=repoConfig
+        )
+
+    @classmethod
     def is_valid(cls, inRepoPath: Path) -> bool:
         LOGGER.entrance()
         if not isNoneOrEmpty(inRepoPath):
@@ -458,62 +516,73 @@ class SmartRepo(Repo):
         return False
 
     @classmethod
+    def repo_path(cls, inRepoNameORPath: SmartPath, inBasePath: SmartPath) -> Path:
+        """
+        Constructs the repository path `inBasePath/RepoName` if inRepoNameORPath is a path, else returns the path as is.
+
+        :param inRepoNameORPath:    Repository name/path
+        :param inBasePath:          Base path of the repo
+        """
+        if isNoneOrEmpty(inRepoNameORPath):
+            raise ValueError(f'{inRepoNameORPath=} cannot be None or Empty')
+        if isNoneOrEmpty(inBasePath):
+            raise ValueError(f'{inBasePath=} cannot be None or Empty')
+
+        inBasePath: Path = convertToPath(inBasePath)
+        inRepoNameORPath = str(inRepoNameORPath).strip()
+        repoPath = Path(inRepoNameORPath if os.sep in inRepoNameORPath else inBasePath / inRepoNameORPath)
+
+        return repoPath.resolve()
+
+    @classmethod
     def smart_init(
             cls,
             inRepoName: str,
-            inDestinationPath: str | PathLike[str] | Path,
-            inRemoteURLPrefix: str,
+            inRepoConfig: RepoConfig,
             inBranch: str = None,
-            initSubmodules: bool = False
-    ) -> 'SmartRepo':
+    ) -> Self:
         """
         Initializes a SmartRepo by
-            1. Locating the repository at inDestinationPath/inRepoName if it exists
-            2. Cloning the repository from inRemoteURLPrefix/inRepoName
+            1. Locating the repository at prop.GIT_ROOT/inRepoName if exists
+            2. Cloning the repository from prop.GIT_REMOTE_BASE_URL/inRepoName
             3. Switching to the specified branch if provided
-            4. Initializing submodules if opted for
+            4. Submodule Initialization if prop.GIT_SUBMODULE_INIT enabled
 
-        :param inRepoName:          Name of the repository to clone
-        :param inDestinationPath:   Base directory to locate or clone the given repository
-        :param inRemoteURLPrefix:   Remote URL prefix to use for cloning.
+        :param inRepoName:          Name of the Repository
+        :param inRepoConfig:        Configuration of the Repository
         :param inBranch:            Branch to check out (optional)
-                                    Defaults to remote and local HEAD
-                                    for new and existing repositories respectively if not specified
-        :param initSubmodules:      Whether to initialize submodules (optional) Defaults to False
+                                    Defaults to remote and local HEAD, for new and existing repositories respectively
         :raises Exception: If clone operation fails
         """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inRepoName):
             raise ValueError(f'{inRepoName=} cannot be None or Empty')
-        if isNoneOrEmpty(inDestinationPath):
-            raise ValueError(f'{inDestinationPath=} cannot be None or Empty')
-        if isNoneOrEmpty(inRemoteURLPrefix):
-            raise ValueError(f'{inRemoteURLPrefix=} cannot be None or Empty')
+        if isNoneOrEmpty(inRepoConfig):
+            raise ValueError(f'{inRepoConfig=} cannot be None or Empty')
 
         inRepoName = inRepoName.strip()
-        inRemoteURLPrefix = inRemoteURLPrefix.strip()
-
-        destinationPath: Path = convertToPath(inDestinationPath)
-        destinationPath.mkdir(parents=True, exist_ok=True)
+        destinationPath: Path = convertToPath(inRepoConfig.properties.GIT_ROOT)
 
         repoPath: Path = destinationPath / inRepoName
-        if SmartRepo.is_valid(repoPath):
-            repo = SmartRepo(repoPath)
+        repoPath.mkdir(parents=True, exist_ok=True)
+
+        try:
+            repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
             LOGGER.info(f'`{repoPath=}` already exists. Skipping clone...')
-        else:
-            repo = SmartRepo.clone_from(
-                url=f'{inRemoteURLPrefix}/{inRepoName}.git',
+        except InvalidGitRepositoryError as e:
+            repo = cls.clone_from(
+                url=f'{inRepoConfig.properties.GIT_REMOTE_BASE_URL}/{inRepoName}.git',
                 to_path=repoPath,
             )
             LOGGER.info(f'Cloned `{repoPath=}` successfully')
 
         if not isNoneOrEmpty(inBranch):
-            inBranch = inBranch.strip()
-            repo.execute(['git', 'switch', inBranch])
-        if initSubmodules:
-            # TODO: Define an env/config property for no. of parallel jobs
-            repo.execute(['git', 'submodule', 'update', '--init', '--recursive', '--jobs', '5'])
+            repo.execute(['git', 'switch', str(inBranch).strip()])
+        if inRepoConfig.properties.GIT_SUBMODULE_INIT:
+            repo.execute(
+                ['git', 'submodule', 'update', '--init', '--recursive', '--jobs', str(repo.properties.GIT_FETCH_JOBS)]
+            )
 
         return repo
 
@@ -521,18 +590,14 @@ class SmartRepo(Repo):
     async def asmart_init(
             cls,
             inRepoName: str,
-            inDestinationPath: str | PathLike[str] | Path,
-            inRemoteURLPrefix: str,
+            inRepoConfig: RepoConfig,
             inBranch: str = None,
-            initSubmodules: bool = False
-    ) -> 'SmartRepo':
+    ) -> Self:
         return await asyncio.to_thread(
-            SmartRepo.smart_init,
+            cls.smart_init,
             inRepoName,
-            inDestinationPath,
-            inRemoteURLPrefix,
-            inBranch,
-            initSubmodules
+            inRepoConfig,
+            inBranch
         )
 
     def _run_sync_command(

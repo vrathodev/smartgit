@@ -39,7 +39,7 @@ class SmartGitConfig(BaseSettings):
     )
 
     repos: Optional[dict[str, Optional[RepoConfig]]] = Field(
-        description='Repository names -> associated configurations mapping',
+        description='Repository names/paths -> associated configurations mapping',
         default_factory=dict,
     )
     projects: Optional[dict[str, Optional[ProjectConfig]]] = Field(
@@ -50,6 +50,18 @@ class SmartGitConfig(BaseSettings):
         description='Global properties applicable to all repositories & projects, takes lower precedence over the project/repo-specific properties',
         default_factory=Properties
     )
+
+    def get_master_config_source(self) -> Path:
+        """
+        Retrieves the master configuration source (*.config.json)
+        :return: The master configuration source path
+        """
+        configPath: Path = self.model_config.get('env_file')
+        # Should never happen
+        assert not isNoneOrEmpty(configPath)
+
+        return configPath.resolve()
+
 
     def get_project_config(self, inProjectName: str) -> Optional[ProjectConfig]:
         """
