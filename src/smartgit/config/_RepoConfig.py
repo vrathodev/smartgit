@@ -19,9 +19,20 @@ class RepoConfig(BaseModel):
         extra='ignore',
         frozen=True,
         str_strip_whitespace=True,
+        json_schema_extra={
+            'examples': [
+                {
+                    'properties': {
+                        'GIT_DEFAULT_BRANCH': 'develop',
+                        'GIT_READONLY_MODE' : True,
+                    }
+                }
+            ]
+        },
     )
 
     properties: Properties = Field(
-        description='Repository-specific properties, takes precedence over its inheritance hierarchy of the properties',
+        description='Repository-specific property overrides. '
+                    'Takes precedence over project and global properties after config resolution.',
         default_factory=Properties
     )

@@ -22,14 +22,35 @@ class ProjectConfig(BaseModel):
         extra='ignore',
         frozen=True,
         str_strip_whitespace=True,
+        json_schema_extra={
+            'examples': [
+                {
+                    'repos'     : {
+                        'sc-utils'  : None,
+                        'sc-runtime': {
+                            'properties': {
+                                'GIT_DEFAULT_BRANCH': 'release/10.3'
+                            }
+                        }
+                    },
+                    'properties': {
+                        'GIT_FETCH_JOBS'    : 8,
+                        'GIT_SUBMODULE_INIT': True,
+                    }
+                }
+            ]
+        },
     )
 
     repos: Optional[dict[str, Optional[RepoConfig]]] = Field(
-        description='Repository names -> associated configurations mapping',
+        description='Repository names mapped to optional repository-specific config. '
+                    'A null value means the repo participates in the project, '
+                    'Fallbacks to the configuration defined in global `repos`'
+                    'Otherwise, the project/global defaults.',
         default_factory=dict
     )
     properties: Properties = Field(
-        description='Project-specific properties, '
-                    'takes precedence over global properties but lower than repo-specific properties',
+        description='Project-scoped property overrides. Takes precedence over global properties '
+                    'but are overridden by repo-specific properties.',
         default_factory=Properties
     )

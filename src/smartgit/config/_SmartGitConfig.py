@@ -38,19 +38,50 @@ class SmartGitConfig(BaseSettings):
         json_file=Path(os.getenv(SG_KEY_CONFIG_PATH, SG_VAL_CONFIG_PATH_DEFAULT)).resolve(),
         extra='ignore',
         frozen=True,
+        json_schema_extra={
+            'examples': [
+                {
+                    'properties': {
+                        'GIT_ROOT'           : 'C:/Users/example/workspace',
+                        'GIT_REMOTE_BASE_URL': 'https://github.com/my-org',
+                        'GIT_SUBMODULE_INIT' : True,
+                    },
+                    'repos'     : {
+                        'my-repo': {
+                            'properties': {
+                                'GIT_READONLY_MODE': True
+                            }
+                        }
+                    },
+                    'projects'  : {
+                        'my-project': {
+                            'repos'     : {
+                                'this-repo': None,
+                                'that-repo': None,
+                            },
+                            'properties': {
+                                'GIT_FETCH_JOBS'    : 5,
+                                'GIT_SUBMODULE_INIT': True,
+                            }
+                        }
+                    }
+                }
+            ]
+        },
     )
 
     repos: Optional[dict[str, Optional[RepoConfig]]] = Field(
-        description='Repository names/paths -> associated configurations mapping',
+        description='Standalone repositories mapped by repository name or path to optional repository-specific configuration.',
         default_factory=dict,
     )
     projects: Optional[dict[str, Optional[ProjectConfig]]] = Field(
-        description='Project names -> associated configurations mapping',
+        description='Named project groups mapped to project configuration. '
+                    'Each project can declare its own repos and scoped property overrides.',
         default_factory=dict
     )
     properties: Properties = Field(
-        description='Global properties applicable to all repositories & projects, '
-                    'takes lower precedence over the project/repo-specific properties',
+        description='Global default properties applied to all repositories and projects before project-level and '
+                    'repo-level overrides are merged in.',
         default_factory=Properties
     )
 

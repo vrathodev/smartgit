@@ -26,7 +26,9 @@ class Properties(BaseModel):
     """
     SmartGit Properties
 
-    Represents all the properties applicable to all the SmartGit primitives
+    Represents the property set that can be applied at global, project, or repository scope.
+
+    These properties act as operational defaults. More specific scopes override less specific ones during config resolution.
     """
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -34,43 +36,64 @@ class Properties(BaseModel):
         extra='ignore',
         frozen=True,
         str_strip_whitespace=True,
+        json_schema_extra={
+            'examples': [
+                {
+                    'GIT_ROOT'           : 'C:/Users/example/workspace',
+                    'GIT_REMOTE_BASE_URL': 'https://github.com/my-org',
+                    'GIT_SUBMODULE_INIT' : True,
+                    'GIT_READONLY_MODE'  : False,
+                }
+            ]
+        },
     )
 
     GIT_ROOT: Annotated[Path, DirectoryPath] = Field(
-        description='Base directory to store all the repositories',
-        default_factory=lambda: Path.cwd().resolve()
+        description='Base directory under which SmartGit locates or creates repositories. '
+                    'Repository names are resolved against this path.',
+        default_factory=lambda: Path.cwd().resolve(),
+        examples=['C:/Users/example/workspace']
     )
 
     GIT_REMOTE_BASE_URL: Annotated[SmartURL, StringProperty] = Field(
-        description='Base URL of the remote to clone the repositories from',
+        description='Base remote URL prefix used when SmartGit has to derive a repository clone URL. '
+                    'For example, repo `my-repo` becomes `<GIT_REMOTE_BASE_URL>/my-repo`.',
         default=None,
         validate_default=False,
-        min_length=1
+        min_length=1,
+        examples=['https://github.com/my-org']
     )
 
     GIT_DEFAULT_REMOTE: Annotated[str, StringProperty] = Field(
-        description='Default remote name',
-        default=SG_VAL_REMOTE_NAME_DEFAULT
+        description='Default git remote name to use when a command does not explicitly specify one.',
+        default=SG_VAL_REMOTE_NAME_DEFAULT,
+        examples=['origin']
     )
 
     GIT_DEFAULT_BRANCH: Annotated[str, StringProperty] = Field(
-        description='Default branch name',
-        default=SG_VAL_BRANCH_NAME_DEFAULT
+        description='Default branch name to use when a command or config entry does not explicitly specify one.',
+        default=SG_VAL_BRANCH_NAME_DEFAULT,
+        examples=['main']
     )
 
     GIT_SUBMODULE_INIT: bool = Field(
-        description='Whether to initialize git submodules after cloning the repositories',
-        default=False
+        description='Whether SmartGit should initialize git submodules after clone or smart-init operations.',
+        default=False,
+        examples=[True]
     )
 
     GIT_FETCH_JOBS: PositiveInt = Field(
-        description='Number of parallel jobs to use to fetch from the remotes',
-        default=5
+        description='Number of parallel jobs to use for git fetch operations. '
+                    'Higher values can improve throughput on larger projects.',
+        default=5,
+        examples=[5]
     )
 
     GIT_READONLY_MODE: bool = Field(
-        description='Whether the associated repo, project or any SmartGit primitive is READ-ONLY or not',
-        default=False
+        description='Marks the associated SmartGit scope as read-only. '
+                    'Mutating operations should refuse to run when this is true.',
+        default=False,
+        examples=[False]
     )
 
     @classmethod
