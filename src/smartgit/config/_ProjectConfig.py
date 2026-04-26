@@ -29,6 +29,7 @@ class ProjectConfig(BaseModel):
         default_factory=dict
     )
     properties: Properties = Field(
-        description='Project-specific properties, takes precedence over global properties but lower than repo-specific properties',
+        description='Project-specific properties, '
+                    'takes precedence over global properties but lower than repo-specific properties',
         default_factory=Properties
     )

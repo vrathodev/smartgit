@@ -20,9 +20,9 @@ LOGGER = getSmartLogger()
 
 class SmartGit(GitProperties, Git):
     def __init__(
-            self,
-            inGitRoot: Optional[str | os.PathLike[str] | Path] = None,
-            inGitCloneRemoteURLPrefix: Optional[str] = None,
+        self,
+        inGitRoot: Optional[str | os.PathLike[str] | Path] = None,
+        inGitCloneRemoteURLPrefix: Optional[str] = None,
     ):
         """
         Initialize SmartGit with root directory and remote URL prefix.
@@ -78,9 +78,9 @@ class SmartGit(GitProperties, Git):
 
     @classmethod
     def filter_repos(
-            cls,
-            inGitRoot: str | os.PathLike[str] | Path,
-            inFilter: Callable[[SmartRepo], bool] = lambda x: x
+        cls,
+        inGitRoot: str | os.PathLike[str] | Path,
+        inFilter: Callable[[SmartRepo], bool] = lambda x: x
     ) -> List[SmartRepo]:
         """
         Finds all the valid Git repositories under the given root directory.

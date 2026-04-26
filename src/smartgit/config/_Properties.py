@@ -6,14 +6,13 @@
 from pathlib import Path
 from typing import Annotated, Any, Optional
 
-from pydantic import BaseModel, Field, PositiveInt, StringConstraints, DirectoryPath, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict, DirectoryPath, Field, PositiveInt, StringConstraints
 
 from smartgit.common.constants import (
-    SG_VAL_BRANCH_NAME_DEFAULT, SG_VAL_REMOTE_NAME_DEFAULT
+    SG_VAL_BRANCH_NAME_DEFAULT, SG_VAL_REMOTE_NAME_DEFAULT,
 )
 from smartgit.common.types import SmartURL
 from smartgit.utils import getSmartLogger
-
 
 LOGGER = getSmartLogger()
 

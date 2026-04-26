@@ -177,3 +177,6 @@ test*.py
 # Logs
 *.log*
 logs/
+
+# Copilot artifacts
+.github/artifacts/

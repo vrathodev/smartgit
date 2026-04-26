@@ -24,9 +24,9 @@ class SmartProject:
     """
 
     def __init__(
-            self,
-            inProjectName: str,
-            inProjectConfig: ProjectConfig,
+        self,
+        inProjectName: str,
+        inProjectConfig: ProjectConfig,
     ):
         """
         Initializes the SmartProject with the ProjectConfig
@@ -42,19 +42,21 @@ class SmartProject:
         self.__mRepos: Set[SmartRepo] = set()
 
         for repoName, repoConfig in self.__mProjectConfig.repos.items():
-            self.__mRepos.add(SmartRepo(
-                path=repoConfig.properties.GIT_ROOT / repoName,
-                inRepoConfig=repoConfig
-            ))
+            self.__mRepos.add(
+                SmartRepo(
+                    path=repoConfig.properties.GIT_ROOT / repoName,
+                    inRepoConfig=repoConfig
+                )
+            )
 
     @property
     def repositories(self) -> FrozenSet[SmartRepo]:
         return frozenset(self.__mRepos)
 
     def fetch(
-            self,
-            inRemote: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s) (sync)
@@ -67,9 +69,9 @@ class SmartProject:
             repo.fetch(inRemote, inSkipTags)
 
     async def afetch(
-            self,
-            inRemote: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s) (async)
@@ -152,10 +154,10 @@ class SmartProject:
 
     @classmethod
     def smart_init(
-            cls,
-            inProjectName: str,
-            inProjectConfig: ProjectConfig,
-            inBranch: str = None
+        cls,
+        inProjectName: str,
+        inProjectConfig: ProjectConfig,
+        inBranch: str = None
     ) -> Self:
         """
         Initializes a SmartProject by
@@ -186,10 +188,10 @@ class SmartProject:
 
     @classmethod
     async def asmart_init(
-            cls,
-            inProjectName: str,
-            inProjectConfig: ProjectConfig,
-            inBranch: str = None
+        cls,
+        inProjectName: str,
+        inProjectConfig: ProjectConfig,
+        inBranch: str = None
     ) -> Self:
         LOGGER.entrance()
 

@@ -12,7 +12,7 @@ from logging.config import dictConfig
 from pathlib import Path
 from typing import *
 
-from smartgit.utils._GenUtility import isNoneOrEmpty, createDir
+from smartgit.utils._GenUtility import createDir, isNoneOrEmpty
 
 CWD = Path.cwd().resolve()
 
@@ -130,7 +130,7 @@ class SmartLogger(logging.Logger):
 def getSmartLogger() -> SmartLogger:
     f"""
     Returns a configured SmartLogger instance
-    
+
     To be used across the project for consistent logging.
     """
     global _LOGGER
@@ -166,12 +166,12 @@ def configSmartLogger() -> SmartLogger:
 
 
 def configLogging(
-        inLevel: Optional[str] = None,
-        inLogFormat: Optional[str] = None,
-        inDateFormat: Optional[str] = None,
-        inLogFilePath: Optional[str] = None,
-        inEnableConsole: bool = True,
-        inEnableFile: bool = True
+    inLevel: Optional[str] = None,
+    inLogFormat: Optional[str] = None,
+    inDateFormat: Optional[str] = None,
+    inLogFilePath: Optional[str] = None,
+    inEnableConsole: bool = True,
+    inEnableFile: bool = True
 ):
     """
     Configures logging with specified parameters or defaults from environment variables

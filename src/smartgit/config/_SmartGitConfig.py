@@ -10,11 +10,13 @@ from typing import Any, Optional
 
 from pydantic import model_validator
 from pydantic.fields import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource, JsonConfigSettingsSource
+from pydantic_settings import BaseSettings, JsonConfigSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 
 from smartgit.common.constants import (
-    SG_KEY_DOTENV_PATH, SG_VAL_DOTENV_PATH_DEFAULT,
-    SG_KEY_CONFIG_PATH, SG_VAL_CONFIG_PATH_DEFAULT
+    SG_KEY_CONFIG_PATH,
+    SG_KEY_DOTENV_PATH,
+    SG_VAL_CONFIG_PATH_DEFAULT,
+    SG_VAL_DOTENV_PATH_DEFAULT,
 )
 from smartgit.config._ProjectConfig import ProjectConfig
 from smartgit.config._Properties import Properties
@@ -47,7 +49,8 @@ class SmartGitConfig(BaseSettings):
         default_factory=dict
     )
     properties: Properties = Field(
-        description='Global properties applicable to all repositories & projects, takes lower precedence over the project/repo-specific properties',
+        description='Global properties applicable to all repositories & projects, '
+                    'takes lower precedence over the project/repo-specific properties',
         default_factory=Properties
     )
 
@@ -61,7 +64,6 @@ class SmartGitConfig(BaseSettings):
         assert not isNoneOrEmpty(configPath)
 
         return configPath.resolve()
-
 
     def get_project_config(self, inProjectName: str) -> Optional[ProjectConfig]:
         """
@@ -110,12 +112,12 @@ class SmartGitConfig(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-            cls,
-            settings_cls: type[BaseSettings],
-            init_settings: PydanticBaseSettingsSource,
-            env_settings: PydanticBaseSettingsSource,
-            dotenv_settings: PydanticBaseSettingsSource,
-            file_secret_settings: PydanticBaseSettingsSource,
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (
             # Denotes the python object initialization i.e. MyModel(key=val)

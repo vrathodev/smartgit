@@ -51,15 +51,15 @@ def isNoneOrEmpty(inVal) -> bool:
         return inVal is None or len(inVal.strip()) == 0
     elif isinstance(inVal, dict):
         return (
-                inVal is None or
-                len(inVal) == 0 or
-                all(map(lambda x: isNoneOrEmpty(x) and isNoneOrEmpty(inVal[x]), inVal))
+            inVal is None or
+            len(inVal) == 0 or
+            all(map(lambda x: isNoneOrEmpty(x) and isNoneOrEmpty(inVal[x]), inVal))
         )
     elif isinstance(inVal, list) or isinstance(inVal, tuple):
         return (
-                inVal is None or
-                len(inVal) == 0 or
-                all(map(lambda x: isNoneOrEmpty(x), inVal))
+            inVal is None or
+            len(inVal) == 0 or
+            all(map(lambda x: isNoneOrEmpty(x), inVal))
         )
     else:
         return isNoneOrEmpty(str(inVal).strip())
@@ -78,10 +78,11 @@ def readFile(inPath: Path, inMode: Optional[str] = 'r', inEncoding: Optional[str
 
 
 def validateEnvVariable(
-        inVarName: str,
-        inValidator: Callable[..., Any] = lambda x: not isNoneOrEmpty(x),
-        inFallbackValue: Optional[Any] = None,
-        inLogger: Optional[logging.Logger] = None) -> Any | None:
+    inVarName: str,
+    inValidator: Callable[..., Any] = lambda x: not isNoneOrEmpty(x),
+    inFallbackValue: Optional[Any] = None,
+    inLogger: Optional[logging.Logger] = None
+) -> Any | None:
     """
     Validates the given Environment Variable using the given Validator method else returns the Fallback Value
     :param inVarName: Name of the Environment Variable
