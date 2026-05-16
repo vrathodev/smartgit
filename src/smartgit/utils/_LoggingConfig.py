@@ -1,5 +1,5 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""" @file Utils/_LoggingConfig.py                                                                                    """
+""" @file smartgit.utils._LoggingConfig.py                                                                           """
 """ Contains logging configuration and utility functions for consistent logging across the project                   """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -12,7 +12,18 @@ from logging.config import dictConfig
 from pathlib import Path
 from typing import *
 
-from smartgit.utils._GenUtility import isNoneOrEmpty, createDir
+from smartgit.common.constants import (
+    SG_KEY_LOG_CONFIG_PATH,
+    SG_KEY_LOG_LEVEL,
+    SG_KEY_LOG_PATH,
+    SG_VAL_LOGGER_NAME,
+    SG_VAL_LOG_CONFIG_DEFAULT,
+    SG_VAL_LOG_DATETIME_FORMAT,
+    SG_VAL_LOG_FORMAT,
+    SG_VAL_LOG_LEVEL_DEFAULT,
+    SG_VAL_LOG_PATH_DEFAULT,
+)
+from smartgit.utils._GenUtility import createDir, isNoneOrEmpty
 
 CWD = Path.cwd().resolve()
 
@@ -23,18 +34,6 @@ class SmartLogger(logging.Logger):
     1. Function entrance logging
     2. Filtering out third-party logs like gitpython
     """
-    # Environment Variable Names
-    ENV_LOGGING_CONFIG: str = 'SMARTGIT_LOGGING_CONFIG'
-    ENV_LOG_PATH: str = 'SMARTGIT_LOG_PATH'
-    ENV_LOG_LEVEL: str = 'SMARTGIT_LOG_LEVEL'
-
-    # Logger Defaults
-    LOG_NAME: str = 'smartgit'
-    LOG_FORMAT: str = '[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s'
-    DATE_FORMAT: str = '%Y-%m-%d %H:%M:%S'
-    # Customizable via environment variable
-    LOG_LEVEL: str = logging.DEBUG
-    LOG_PATH: str = CWD / 'logs' / 'smartgit.log'
 
     def __init__(self, name: str, level: int = logging.NOTSET):
         super().__init__(name, level)
@@ -130,7 +129,7 @@ class SmartLogger(logging.Logger):
 def getSmartLogger() -> SmartLogger:
     f"""
     Returns a configured SmartLogger instance
-    
+
     To be used across the project for consistent logging.
     """
     global _LOGGER
@@ -145,9 +144,9 @@ def configSmartLogger() -> SmartLogger:
     """
     logging.setLoggerClass(SmartLogger)
 
-    log_config_path = os.environ.get(SmartLogger.ENV_LOGGING_CONFIG, '').strip()
+    log_config_path = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
     log_config_path = os.path.abspath(
-        log_config_path if log_config_path else os.path.join(CWD, 'logging.config.json')
+        log_config_path if log_config_path else str(SG_VAL_LOG_CONFIG_DEFAULT)
     )
 
     logger = None
@@ -155,33 +154,36 @@ def configSmartLogger() -> SmartLogger:
         with open(log_config_path) as file:
             dictConfig(json.load(file))
 
-        logger = logging.getLogger(SmartLogger.LOG_NAME)
-        logger.info(f'Logging configured from file: {log_config_path}')
+        logger = logging.getLogger(SG_VAL_LOGGER_NAME)
+        logger.info(f'Logging configured from file: `{log_config_path}`')
     except Exception as e:
-        configLogging()
-        logger = logging.getLogger(SmartLogger.LOG_NAME)
+        configLogging(
+            inLevel=os.getenv(SG_KEY_LOG_LEVEL),
+            inLogFilePath=os.getenv(SG_KEY_LOG_PATH)
+        )
+        logger = logging.getLogger(SG_VAL_LOGGER_NAME)
         logger.warning(f'Failed to load logging configuration from {log_config_path}: {e}')
     finally:
         return logger
 
 
 def configLogging(
-        inLevel: Optional[str] = None,
-        inLogFormat: Optional[str] = None,
-        inDateFormat: Optional[str] = None,
-        inLogFilePath: Optional[str] = None,
-        inEnableConsole: bool = True,
-        inEnableFile: bool = True
+    inLevel: Optional[str] = None,
+    inLogFormat: Optional[str] = None,
+    inDateFormat: Optional[str] = None,
+    inLogFilePath: Optional[str] = None,
+    inEnableConsole: bool = True,
+    inEnableFile: bool = True
 ):
     """
     Configures logging with specified parameters or defaults from environment variables
     """
     level = logging.getLevelName(inLevel.strip().upper() if not isNoneOrEmpty(inLevel) else '')
-    level = SmartLogger.LOG_LEVEL if isinstance(level, str) and 'level' in level.lower() else level
+    level = SG_VAL_LOG_LEVEL_DEFAULT if isinstance(level, str) and 'level' in level.lower() else level
 
-    logFormat = inLogFormat if not isNoneOrEmpty(inLogFormat) else SmartLogger.LOG_FORMAT
-    dateFormat = inDateFormat if not isNoneOrEmpty(inDateFormat) else SmartLogger.DATE_FORMAT
-    logFile = Path(inLogFilePath.strip() if not isNoneOrEmpty(inLogFilePath) else SmartLogger.LOG_PATH).resolve()
+    logFormat = inLogFormat if not isNoneOrEmpty(inLogFormat) else SG_VAL_LOG_FORMAT
+    dateFormat = inDateFormat if not isNoneOrEmpty(inDateFormat) else SG_VAL_LOG_DATETIME_FORMAT
+    logFile = Path(inLogFilePath.strip() if not isNoneOrEmpty(inLogFilePath) else SG_VAL_LOG_PATH_DEFAULT).resolve()
 
     if inEnableFile and logFile:
         createDir(str(logFile.parent))

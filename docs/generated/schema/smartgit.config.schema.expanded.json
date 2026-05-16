@@ -1,0 +1,481 @@
+{
+    "type": "object",
+    "properties": {
+        "repos": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "properties": {
+                        "type": "object",
+                        "properties": {
+                            "GIT_ROOT": {
+                                "type": "string",
+                                "format": "path",
+                                "description": "Base directory under which SmartGit locates or creates repositories. Repository names are resolved against this path.",
+                                "examples": [
+                                    "C:/Users/example/workspace"
+                                ],
+                                "title": "Git Root"
+                            },
+                            "GIT_REMOTE_BASE_URL": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "minLength": 1,
+                                        "maxLength": 2083
+                                    }
+                                ],
+                                "minLength": 1,
+                                "default": null,
+                                "description": "Base remote URL prefix used when SmartGit has to derive a repository clone URL. For example, repo `my-repo` becomes `<GIT_REMOTE_BASE_URL>/my-repo`.",
+                                "examples": [
+                                    "https://github.com/my-org"
+                                ],
+                                "title": "Git Remote Base Url"
+                            },
+                            "GIT_DEFAULT_REMOTE": {
+                                "type": "string",
+                                "minLength": 1,
+                                "default": "origin",
+                                "description": "Default git remote name to use when a command does not explicitly specify one.",
+                                "examples": [
+                                    "origin"
+                                ],
+                                "title": "Git Default Remote"
+                            },
+                            "GIT_DEFAULT_BRANCH": {
+                                "type": "string",
+                                "minLength": 1,
+                                "default": "main",
+                                "description": "Default branch name to use when a command or config entry does not explicitly specify one.",
+                                "examples": [
+                                    "main"
+                                ],
+                                "title": "Git Default Branch"
+                            },
+                            "GIT_SUBMODULE_INIT": {
+                                "type": "boolean",
+                                "default": false,
+                                "description": "Whether SmartGit should initialize git submodules after clone or smart-init operations.",
+                                "examples": [
+                                    true
+                                ],
+                                "title": "Git Submodule Init"
+                            },
+                            "GIT_FETCH_JOBS": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "default": 5,
+                                "description": "Number of parallel jobs to use for git fetch operations. Higher values can improve throughput on larger projects.",
+                                "examples": [
+                                    5
+                                ],
+                                "title": "Git Fetch Jobs"
+                            },
+                            "GIT_READONLY_MODE": {
+                                "type": "boolean",
+                                "default": false,
+                                "description": "Marks the associated SmartGit scope as read-only. Mutating operations should refuse to run when this is true.",
+                                "examples": [
+                                    false
+                                ],
+                                "title": "Git Readonly Mode"
+                            }
+                        },
+                        "title": "Properties",
+                        "description": "Repository-specific property overrides. Takes precedence over project and global properties after config resolution.",
+                        "examples": [
+                            {
+                                "GIT_ROOT": "C:/Users/example/workspace",
+                                "GIT_REMOTE_BASE_URL": "https://github.com/my-org",
+                                "GIT_SUBMODULE_INIT": true,
+                                "GIT_READONLY_MODE": false
+                            }
+                        ]
+                    }
+                },
+                "title": "RepoConfig",
+                "description": "RepoConfig -- Configuration settings for a SmartGit repository",
+                "examples": [
+                    {
+                        "properties": {
+                            "GIT_DEFAULT_BRANCH": "develop",
+                            "GIT_READONLY_MODE": true
+                        }
+                    }
+                ],
+                "nullable": true
+            },
+            "nullable": true,
+            "description": "Standalone repositories mapped by repository name or path to optional repository-specific configuration.",
+            "title": "Repos"
+        },
+        "projects": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "repos": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                                "properties": {
+                                    "type": "object",
+                                    "properties": {
+                                        "GIT_ROOT": {
+                                            "type": "string",
+                                            "format": "path",
+                                            "description": "Base directory under which SmartGit locates or creates repositories. Repository names are resolved against this path.",
+                                            "examples": [
+                                                "C:/Users/example/workspace"
+                                            ],
+                                            "title": "Git Root"
+                                        },
+                                        "GIT_REMOTE_BASE_URL": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "format": "uri",
+                                                    "minLength": 1,
+                                                    "maxLength": 2083
+                                                }
+                                            ],
+                                            "minLength": 1,
+                                            "default": null,
+                                            "description": "Base remote URL prefix used when SmartGit has to derive a repository clone URL. For example, repo `my-repo` becomes `<GIT_REMOTE_BASE_URL>/my-repo`.",
+                                            "examples": [
+                                                "https://github.com/my-org"
+                                            ],
+                                            "title": "Git Remote Base Url"
+                                        },
+                                        "GIT_DEFAULT_REMOTE": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "default": "origin",
+                                            "description": "Default git remote name to use when a command does not explicitly specify one.",
+                                            "examples": [
+                                                "origin"
+                                            ],
+                                            "title": "Git Default Remote"
+                                        },
+                                        "GIT_DEFAULT_BRANCH": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "default": "main",
+                                            "description": "Default branch name to use when a command or config entry does not explicitly specify one.",
+                                            "examples": [
+                                                "main"
+                                            ],
+                                            "title": "Git Default Branch"
+                                        },
+                                        "GIT_SUBMODULE_INIT": {
+                                            "type": "boolean",
+                                            "default": false,
+                                            "description": "Whether SmartGit should initialize git submodules after clone or smart-init operations.",
+                                            "examples": [
+                                                true
+                                            ],
+                                            "title": "Git Submodule Init"
+                                        },
+                                        "GIT_FETCH_JOBS": {
+                                            "type": "integer",
+                                            "exclusiveMinimum": 0,
+                                            "default": 5,
+                                            "description": "Number of parallel jobs to use for git fetch operations. Higher values can improve throughput on larger projects.",
+                                            "examples": [
+                                                5
+                                            ],
+                                            "title": "Git Fetch Jobs"
+                                        },
+                                        "GIT_READONLY_MODE": {
+                                            "type": "boolean",
+                                            "default": false,
+                                            "description": "Marks the associated SmartGit scope as read-only. Mutating operations should refuse to run when this is true.",
+                                            "examples": [
+                                                false
+                                            ],
+                                            "title": "Git Readonly Mode"
+                                        }
+                                    },
+                                    "title": "Properties",
+                                    "description": "Repository-specific property overrides. Takes precedence over project and global properties after config resolution.",
+                                    "examples": [
+                                        {
+                                            "GIT_ROOT": "C:/Users/example/workspace",
+                                            "GIT_REMOTE_BASE_URL": "https://github.com/my-org",
+                                            "GIT_SUBMODULE_INIT": true,
+                                            "GIT_READONLY_MODE": false
+                                        }
+                                    ]
+                                }
+                            },
+                            "title": "RepoConfig",
+                            "description": "RepoConfig -- Configuration settings for a SmartGit repository",
+                            "examples": [
+                                {
+                                    "properties": {
+                                        "GIT_DEFAULT_BRANCH": "develop",
+                                        "GIT_READONLY_MODE": true
+                                    }
+                                }
+                            ],
+                            "nullable": true
+                        },
+                        "nullable": true,
+                        "description": "Repository names mapped to optional repository-specific config. A null value means the repo participates in the project, Fallbacks to the configuration defined in global `repos`Otherwise, the project/global defaults.",
+                        "title": "Repos"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "properties": {
+                            "GIT_ROOT": {
+                                "type": "string",
+                                "format": "path",
+                                "description": "Base directory under which SmartGit locates or creates repositories. Repository names are resolved against this path.",
+                                "examples": [
+                                    "C:/Users/example/workspace"
+                                ],
+                                "title": "Git Root"
+                            },
+                            "GIT_REMOTE_BASE_URL": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "minLength": 1,
+                                        "maxLength": 2083
+                                    }
+                                ],
+                                "minLength": 1,
+                                "default": null,
+                                "description": "Base remote URL prefix used when SmartGit has to derive a repository clone URL. For example, repo `my-repo` becomes `<GIT_REMOTE_BASE_URL>/my-repo`.",
+                                "examples": [
+                                    "https://github.com/my-org"
+                                ],
+                                "title": "Git Remote Base Url"
+                            },
+                            "GIT_DEFAULT_REMOTE": {
+                                "type": "string",
+                                "minLength": 1,
+                                "default": "origin",
+                                "description": "Default git remote name to use when a command does not explicitly specify one.",
+                                "examples": [
+                                    "origin"
+                                ],
+                                "title": "Git Default Remote"
+                            },
+                            "GIT_DEFAULT_BRANCH": {
+                                "type": "string",
+                                "minLength": 1,
+                                "default": "main",
+                                "description": "Default branch name to use when a command or config entry does not explicitly specify one.",
+                                "examples": [
+                                    "main"
+                                ],
+                                "title": "Git Default Branch"
+                            },
+                            "GIT_SUBMODULE_INIT": {
+                                "type": "boolean",
+                                "default": false,
+                                "description": "Whether SmartGit should initialize git submodules after clone or smart-init operations.",
+                                "examples": [
+                                    true
+                                ],
+                                "title": "Git Submodule Init"
+                            },
+                            "GIT_FETCH_JOBS": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "default": 5,
+                                "description": "Number of parallel jobs to use for git fetch operations. Higher values can improve throughput on larger projects.",
+                                "examples": [
+                                    5
+                                ],
+                                "title": "Git Fetch Jobs"
+                            },
+                            "GIT_READONLY_MODE": {
+                                "type": "boolean",
+                                "default": false,
+                                "description": "Marks the associated SmartGit scope as read-only. Mutating operations should refuse to run when this is true.",
+                                "examples": [
+                                    false
+                                ],
+                                "title": "Git Readonly Mode"
+                            }
+                        },
+                        "title": "Properties",
+                        "description": "Project-scoped property overrides. Takes precedence over global properties but are overridden by repo-specific properties.",
+                        "examples": [
+                            {
+                                "GIT_ROOT": "C:/Users/example/workspace",
+                                "GIT_REMOTE_BASE_URL": "https://github.com/my-org",
+                                "GIT_SUBMODULE_INIT": true,
+                                "GIT_READONLY_MODE": false
+                            }
+                        ]
+                    }
+                },
+                "title": "ProjectConfig",
+                "description": "ProjectConfig -- Configuration settings for a SmartGit project",
+                "examples": [
+                    {
+                        "repos": {
+                            "sc-utils": null,
+                            "sc-runtime": {
+                                "properties": {
+                                    "GIT_DEFAULT_BRANCH": "release/10.3"
+                                }
+                            }
+                        },
+                        "properties": {
+                            "GIT_FETCH_JOBS": 8,
+                            "GIT_SUBMODULE_INIT": true
+                        }
+                    }
+                ],
+                "nullable": true
+            },
+            "nullable": true,
+            "description": "Named project groups mapped to project configuration. Each project can declare its own repos and scoped property overrides.",
+            "title": "Projects"
+        },
+        "properties": {
+            "type": "object",
+            "properties": {
+                "GIT_ROOT": {
+                    "type": "string",
+                    "format": "path",
+                    "description": "Base directory under which SmartGit locates or creates repositories. Repository names are resolved against this path.",
+                    "examples": [
+                        "C:/Users/example/workspace"
+                    ],
+                    "title": "Git Root"
+                },
+                "GIT_REMOTE_BASE_URL": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "string",
+                            "format": "uri",
+                            "minLength": 1,
+                            "maxLength": 2083
+                        }
+                    ],
+                    "minLength": 1,
+                    "default": null,
+                    "description": "Base remote URL prefix used when SmartGit has to derive a repository clone URL. For example, repo `my-repo` becomes `<GIT_REMOTE_BASE_URL>/my-repo`.",
+                    "examples": [
+                        "https://github.com/my-org"
+                    ],
+                    "title": "Git Remote Base Url"
+                },
+                "GIT_DEFAULT_REMOTE": {
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "origin",
+                    "description": "Default git remote name to use when a command does not explicitly specify one.",
+                    "examples": [
+                        "origin"
+                    ],
+                    "title": "Git Default Remote"
+                },
+                "GIT_DEFAULT_BRANCH": {
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "main",
+                    "description": "Default branch name to use when a command or config entry does not explicitly specify one.",
+                    "examples": [
+                        "main"
+                    ],
+                    "title": "Git Default Branch"
+                },
+                "GIT_SUBMODULE_INIT": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Whether SmartGit should initialize git submodules after clone or smart-init operations.",
+                    "examples": [
+                        true
+                    ],
+                    "title": "Git Submodule Init"
+                },
+                "GIT_FETCH_JOBS": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "default": 5,
+                    "description": "Number of parallel jobs to use for git fetch operations. Higher values can improve throughput on larger projects.",
+                    "examples": [
+                        5
+                    ],
+                    "title": "Git Fetch Jobs"
+                },
+                "GIT_READONLY_MODE": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Marks the associated SmartGit scope as read-only. Mutating operations should refuse to run when this is true.",
+                    "examples": [
+                        false
+                    ],
+                    "title": "Git Readonly Mode"
+                }
+            },
+            "title": "Properties",
+            "description": "Global default properties applied to all repositories and projects before project-level and repo-level overrides are merged in.",
+            "examples": [
+                {
+                    "GIT_ROOT": "C:/Users/example/workspace",
+                    "GIT_REMOTE_BASE_URL": "https://github.com/my-org",
+                    "GIT_SUBMODULE_INIT": true,
+                    "GIT_READONLY_MODE": false
+                }
+            ]
+        }
+    },
+    "title": "SmartGitConfig",
+    "description": "Human-friendly view of the SmartGit config schema. Local $ref values are expanded and simple nullable unions are simplified.",
+    "examples": [
+        {
+            "properties": {
+                "GIT_ROOT": "C:/Users/example/workspace",
+                "GIT_REMOTE_BASE_URL": "https://github.com/my-org",
+                "GIT_SUBMODULE_INIT": true
+            },
+            "repos": {
+                "my-repo": {
+                    "properties": {
+                        "GIT_READONLY_MODE": true
+                    }
+                }
+            },
+            "projects": {
+                "my-project": {
+                    "repos": {
+                        "this-repo": null,
+                        "that-repo": null
+                    },
+                    "properties": {
+                        "GIT_FETCH_JOBS": 5,
+                        "GIT_SUBMODULE_INIT": true
+                    }
+                }
+            }
+        }
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "x-generated-by": "scripts/generate_config_schema.py",
+    "x-schema-mode": "validation",
+    "x-display-schema": true
+}

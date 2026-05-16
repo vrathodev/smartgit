@@ -1,0 +1,119 @@
+# .editorconfig
+# Universal formatting rules for all editors.
+# ij_ prefixed properties apply to JetBrains IDEs (PyCharm) only.
+# Converted 1-to-1 from docs/internal/standards/.editorconfig-pycharm.xml
+root = true
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# All files
+# ──────────────────────────────────────────────────────────────────────────────
+[*]
+charset                  = utf-8
+end_of_line              = lf
+trim_trailing_whitespace = true
+insert_final_newline     = true
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Python source files
+# ──────────────────────────────────────────────────────────────────────────────
+[*.py]
+indent_style    = space
+indent_size     = 4
+tab_width       = 4
+max_line_length = 125
+
+# ── JetBrains / PyCharm (ij_) ─────────────────────────────────────────────────
+# These are ignored by non-JetBrains editors.
+
+# RIGHT_MARGIN = 125 / WRAP_LONG_LINES = true
+ij_python_right_margin                                       = 125
+ij_python_wrap_long_lines                                    = true
+
+# NEW_LINE_AFTER_COLON = true
+ij_python_new_line_after_colon_single_line_statement         = true
+
+# DICT_ALIGNMENT = 1 (align when multiline)
+# DICT_WRAPPING = 5 (chop down if long)
+# DICT_NEW_LINE_AFTER_LEFT_BRACE = true
+# DICT_NEW_LINE_BEFORE_RIGHT_BRACE = true
+ij_python_dict_alignment                                     = align_when_multiline
+ij_python_dict_wrapping                                      = chop_down_if_long
+ij_python_dict_new_line_after_left_brace                     = true
+ij_python_dict_new_line_before_right_brace                   = true
+
+# LIST_WRAPPING = 5 (chop down if long)
+# LIST_NEW_LINE_AFTER_LEFT_BRACKET = true
+# LIST_NEW_LINE_BEFORE_RIGHT_BRACKET = true
+ij_python_list_wrapping                                      = chop_down_if_long
+ij_python_list_new_line_after_left_bracket                   = true
+ij_python_list_new_line_before_right_bracket                 = true
+
+# SET_WRAPPING = 5 (chop down if long)
+# SET_NEW_LINE_AFTER_LEFT_BRACE = true
+# SET_NEW_LINE_BEFORE_RIGHT_BRACE = true
+ij_python_set_wrapping                                       = chop_down_if_long
+ij_python_set_new_line_after_left_brace                      = true
+ij_python_set_new_line_before_right_brace                    = true
+
+# TUPLE_WRAPPING = 5 (chop down if long)
+# TUPLE_NEW_LINE_AFTER_LEFT_PARENTHESIS = true
+# TUPLE_NEW_LINE_BEFORE_RIGHT_PARENTHESIS = true
+ij_python_tuple_wrapping                                     = chop_down_if_long
+ij_python_tuple_new_line_after_left_parenthesis              = true
+ij_python_tuple_new_line_before_right_parenthesis            = true
+
+# CALL_PARAMETERS_WRAP = 5 (chop down if long)
+# CALL_PARAMETERS_LPAREN_ON_NEXT_LINE = true
+# CALL_PARAMETERS_RPAREN_ON_NEXT_LINE = true
+ij_python_call_parameters_wrap                               = chop_down_if_long
+ij_python_call_parameters_new_line_after_left_parenthesis    = true
+ij_python_call_parameters_new_line_before_right_parenthesis  = true
+
+# METHOD_PARAMETERS_WRAP = 5 (chop down if long)
+# METHOD_PARAMETERS_LPAREN_ON_NEXT_LINE = true
+# METHOD_PARAMETERS_RPAREN_ON_NEXT_LINE = true
+# USE_CONTINUATION_INDENT_FOR_PARAMETERS = false
+ij_python_method_parameters_wrap                              = chop_down_if_long
+ij_python_method_parameters_new_line_after_left_parenthesis  = true
+ij_python_method_parameters_new_line_before_right_parenthesis = true
+ij_python_use_continuation_indent_for_parameters             = false
+
+# FROM_IMPORT_WRAPPING = 5 (chop down if long)
+# FROM_IMPORT_NEW_LINE_AFTER_LEFT_PARENTHESIS = true
+# FROM_IMPORT_NEW_LINE_BEFORE_RIGHT_PARENTHESIS = true
+# FROM_IMPORT_PARENTHESES_FORCE_IF_MULTILINE = true
+# FROM_IMPORT_TRAILING_COMMA_IF_MULTILINE = true
+# OPTIMIZE_IMPORTS_SORT_NAMES_IN_FROM_IMPORTS = true
+ij_python_from_import_wrapping                               = chop_down_if_long
+ij_python_from_import_new_line_after_left_parenthesis        = true
+ij_python_from_import_new_line_before_right_parenthesis      = true
+ij_python_from_import_parentheses_force_if_multiline         = true
+ij_python_from_import_trailing_comma_if_multiline            = true
+ij_python_optimize_imports_sort_names_in_from_imports        = true
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Data / config files
+# ──────────────────────────────────────────────────────────────────────────────
+[*.{json,yaml,yml,toml}]
+indent_style    = space
+indent_size     = 4
+max_line_length = 125
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Markdown / reStructuredText — no enforced line length; trailing spaces are
+# meaningful in some Markdown renderers, so skip whitespace trimming.
+# ──────────────────────────────────────────────────────────────────────────────
+[*.{md,rst}]
+trim_trailing_whitespace = false
+max_line_length          = off
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Makefiles require literal tabs
+# ──────────────────────────────────────────────────────────────────────────────
+[Makefile]
+indent_style = tab

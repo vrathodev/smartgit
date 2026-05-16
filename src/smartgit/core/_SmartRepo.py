@@ -1,5 +1,5 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""" @file smartgit/_SmartRepo.py                                                                                     """
+""" @file smartgit.core._SmartRepo.py                                                                                """
 """ Enhanced repository class with additional Git operations                                                         """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -7,12 +7,14 @@ import asyncio
 import os
 from dataclasses import dataclass
 from functools import cached_property
-from os import PathLike
 from pathlib import Path
-from typing import FrozenSet, List, Generator, Any, Callable, Coroutine, Optional
+from typing import Any, Callable, Coroutine, FrozenSet, Generator, List, Optional, Self
 
-from git import Repo, GitCommandError
+from git import GitCommandError, InvalidGitRepositoryError, Repo
 
+from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
+from smartgit.common.types import SmartPath
+from smartgit.config import Properties, RepoConfig, SmartGitConfig
 from smartgit.utils import *
 
 # Logger instance
@@ -32,9 +34,35 @@ class GitCMD:
 
 
 class SmartRepo(Repo):
+    """
+    SmartRepo -- Async + sync Git operations capable SmartGit primitive
+    """
+
+    def __init__(self, inRepoConfig: Optional[RepoConfig], **kwargs):
+        """
+        Initializes the SmartRepo with the RepoConfig
+
+        :param inRepoConfig:    [Optional] Repository configuration to initialize the SmartRepo with.
+        """
+        super().__init__(**kwargs)
+
+        self.__mRepoConfig: RepoConfig = inRepoConfig or RepoConfig()
+
+    @property
+    def config(self) -> RepoConfig:
+        return self.__mRepoConfig
+
     @property
     def name(self) -> str:
-        return os.path.basename(self.working_dir or self.working_tree_dir or '')
+        return os.path.basename(self.path)
+
+    @property
+    def path(self) -> Path:
+        return Path(self.working_dir)
+
+    @property
+    def properties(self) -> Properties:
+        return self.__mRepoConfig.properties
 
     @cached_property
     def remote_branches(self) -> FrozenSet[str]:
@@ -46,10 +74,8 @@ class SmartRepo(Repo):
         branches = set()
 
         for remote in self.remotes:
-            LOGGER.debug(f'Fetching from {remote.name=}')
             remote.fetch()
             for ref in remote.refs:
-                LOGGER.debug(f'Processing {ref.name=}')
                 branches.add(ref.name)
 
         return frozenset(branches)
@@ -85,7 +111,7 @@ class SmartRepo(Repo):
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=self.working_dir
+            cwd=self.path
         )
 
         while True:
@@ -107,11 +133,12 @@ class SmartRepo(Repo):
             raise GitCommandError(' '.join(command), returnCode, errorStr)
 
     def _create_branch(
-            self,
-            inBranchName: str,
-            inStartPoint: str,
-            inPushRemote: bool = False,
-            inRemoteName: str = 'origin'):
+        self,
+        inBranchName: str,
+        inStartPoint: str,
+        inPushRemote: bool = False,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT
+    ):
         """
         Creates a new branch from the specified start point (commit hash or branch name or tag)
 
@@ -121,6 +148,9 @@ class SmartRepo(Repo):
         :param inRemoteName:    Name of the remote to push to (optional) Defaults to 'origin'
         """
         LOGGER.entrance()
+
+        if self.properties.GIT_READONLY_MODE:
+            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
 
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
@@ -143,30 +173,35 @@ class SmartRepo(Repo):
             LOGGER.exception(f'`{inStartPoint=}` is NOT a valid reference. Aborting branch creation.')
             raise Exception(f'`{inStartPoint=}` is NOT a valid reference.')
 
-        yield GitCMD([
-            'git',
-            'branch',
-            inBranchName,
-            inStartPoint,
-        ])
+        yield GitCMD(
+            [
+                'git',
+                'branch',
+                inBranchName,
+                inStartPoint,
+            ]
+        )
         LOGGER.info(f'`{inBranchName=}` created successfully from `{inStartPoint=}` in local')
 
         if inPushRemote:
-            yield GitCMD([
-                'git',
-                'push',
-                '--set-upstream',
-                inRemoteName,
-                inBranchName
-            ])
+            yield GitCMD(
+                [
+                    'git',
+                    'push',
+                    '--set-upstream',
+                    inRemoteName,
+                    inBranchName
+                ]
+            )
             LOGGER.info(f'`{inBranchName=}` pushed successfully to `{inRemoteName=}`')
 
     def create_branch(
-            self,
-            inBranchName: str,
-            inStartPoint: str,
-            inPushRemote: bool = False,
-            inRemoteName: str = 'origin'):
+        self,
+        inBranchName: str,
+        inStartPoint: str,
+        inPushRemote: bool = False,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT
+    ):
         """
         Creates a new branch from the specified start point (commit hash or branch name or tag)
 
@@ -183,11 +218,12 @@ class SmartRepo(Repo):
         )
 
     async def async_create_branch(
-            self,
-            inBranchName: str,
-            inStartPoint: str,
-            inPushRemote: bool = False,
-            inRemoteName: str = 'origin'):
+        self,
+        inBranchName: str,
+        inStartPoint: str,
+        inPushRemote: bool = False,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT
+    ):
         """
         Creates a new branch from the specified start point (commit hash or branch name or tag)
 
@@ -204,11 +240,12 @@ class SmartRepo(Repo):
         )
 
     def _delete_branch(
-            self,
-            inBranchName: str,
-            inFromRemote: bool = False,
-            inRemoteName: str = 'origin',
-            inForce: bool = False):
+        self,
+        inBranchName: str,
+        inFromRemote: bool = False,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
+        inForce: bool = False
+    ):
         """
         Deletes a branch locally and/or from remote.
         :param inBranchName:    Name of the branch to delete
@@ -218,37 +255,45 @@ class SmartRepo(Repo):
         """
         LOGGER.entrance()
 
+        if self.properties.GIT_READONLY_MODE:
+            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
+
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
 
         inBranchName = inBranchName.strip()
 
         if inBranchName in self.branches:
-            yield GitCMD([
-                'git',
-                'branch',
-                '-D' if inForce else '-d',
-                inBranchName,
-            ])
+            yield GitCMD(
+                [
+                    'git',
+                    'branch',
+                    '-D' if inForce else '-d',
+                    inBranchName,
+                ]
+            )
             LOGGER.info(f'`{inBranchName=}` deleted from local')
         else:
             LOGGER.warning(f'`{inBranchName=}` does not exist locally. Skipping local deletion.')
 
         if inFromRemote:
-            yield GitCMD([
-                'git',
-                'push',
-                inRemoteName,
-                '--delete',
-                inBranchName,
-            ])
+            yield GitCMD(
+                [
+                    'git',
+                    'push',
+                    inRemoteName,
+                    '--delete',
+                    inBranchName,
+                ]
+            )
 
     def delete_branch(
-            self,
-            inBranchName: str,
-            inFromRemote: bool = False,
-            inRemoteName: str = 'origin',
-            inForce: bool = False):
+        self,
+        inBranchName: str,
+        inFromRemote: bool = False,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
+        inForce: bool = False
+    ):
         """
         Deletes a branch locally and/or from remote.
         :param inBranchName:    Name of the branch to delete
@@ -264,11 +309,12 @@ class SmartRepo(Repo):
         )
 
     async def async_delete_branch(
-            self,
-            inBranchName: str,
-            inFromRemote: bool = False,
-            inRemoteName: str = 'origin',
-            inForce: bool = False):
+        self,
+        inBranchName: str,
+        inFromRemote: bool = False,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
+        inForce: bool = False
+    ):
         """
         Deletes a branch locally and/or from remote.
         :param inBranchName:    Name of the branch to delete
@@ -284,9 +330,9 @@ class SmartRepo(Repo):
         )
 
     def _fetch(
-            self,
-            inRemote: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s)
@@ -298,8 +344,7 @@ class SmartRepo(Repo):
         command = ['git', 'fetch']
         if isNoneOrEmpty(inRemote):
             command.append('--all')
-            # TODO: Define an env/config property for no. of parallel jobs
-            command.extend(['--jobs', '5'])
+            command.extend(['--jobs', str(self.properties.GIT_FETCH_JOBS)])
         else:
             command.append(inRemote.strip())
         if inSkipTags:
@@ -308,9 +353,9 @@ class SmartRepo(Repo):
         yield GitCMD(command)
 
     def fetch(
-            self,
-            inRemote: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s)
@@ -322,9 +367,9 @@ class SmartRepo(Repo):
         return self._run_sync_command(self._fetch(inRemote, inSkipTags), self.execute)
 
     async def afetch(
-            self,
-            inRemote: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s) (async)
@@ -347,12 +392,14 @@ class SmartRepo(Repo):
         if not (inPruneBranches or inPruneTags):
             raise ValueError('Must specify whether to prune branches and/or tags')
 
-        yield GitCMD([
-            'git',
-            'fetch',
-            '--prune' if inPruneBranches else '',
-            '--prune-tags' if inPruneTags else '',
-        ])
+        yield GitCMD(
+            [
+                'git',
+                'fetch',
+                '--prune' if inPruneBranches else '',
+                '--prune-tags' if inPruneTags else '',
+            ]
+        )
 
     def prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
         """
@@ -376,7 +423,7 @@ class SmartRepo(Repo):
 
         return await self._run_async_command(self._prune(inPruneBranches, inPruneTags), self.aexecute)
 
-    def _pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    def _pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -400,23 +447,27 @@ class SmartRepo(Repo):
 
         if inBranchName not in self.branches:
             LOGGER.warning(f'`{inBranchName=}` does not exist locally, attempting to checkout from remote...')
-            yield GitCMD([
-                'git',
-                'switch',
-                inBranchName,
-                f'{inRemoteName}/{inBranchName}',
-            ])
+            yield GitCMD(
+                [
+                    'git',
+                    'switch',
+                    inBranchName,
+                    f'{inRemoteName}/{inBranchName}',
+                ]
+            )
             return
 
-        yield GitCMD([
-            'git',
-            'pull',
-            inRemoteName,
-            inBranchName,
-        ])
+        yield GitCMD(
+            [
+                'git',
+                'pull',
+                inRemoteName,
+                inBranchName,
+            ]
+        )
         LOGGER.info(f'Pulled {inBranchName} successfully from {inRemoteName}')
 
-    def pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    def pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -431,7 +482,7 @@ class SmartRepo(Repo):
             self.execute
         )
 
-    async def apull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    async def apull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -447,6 +498,34 @@ class SmartRepo(Repo):
         )
 
     @classmethod
+    def from_config(cls, inRepoName: str, inConfig: SmartGitConfig) -> Self:
+        """
+        Initializes a SmartRepo from the configuration for the given repository name
+
+        :param inRepoName:  Name of the repository
+        :param inConfig:    SmartGit Master Configuration instance
+        :returns: The initialized SmartRepo instance
+        """
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inRepoName):
+            raise ValueError(f'{inRepoName=} cannot be None or Empty')
+
+        inRepoName = inRepoName.strip()
+        try:
+            repoConfig: Optional[RepoConfig] = inConfig.get_repo_config(inRepoName)
+            if isNoneOrEmpty(repoConfig):
+                raise Exception(f'{inRepoName} is not configured in {inConfig.get_master_config_source()}')
+        except Exception as e:
+            LOGGER.exception(e)
+            raise
+
+        return cls(
+            path=repoConfig.properties.GIT_ROOT / inRepoName,
+            inRepoConfig=repoConfig
+        )
+
+    @classmethod
     def is_valid(cls, inRepoPath: Path) -> bool:
         LOGGER.entrance()
         if not isNoneOrEmpty(inRepoPath):
@@ -458,87 +537,94 @@ class SmartRepo(Repo):
         return False
 
     @classmethod
+    def repo_path(cls, inRepoNameORPath: SmartPath, inBasePath: SmartPath) -> Path:
+        """
+        Constructs the repository path `inBasePath/RepoName` if inRepoNameORPath is a path, else returns the path as is.
+
+        :param inRepoNameORPath:    Repository name/path
+        :param inBasePath:          Base path of the repo
+        """
+        if isNoneOrEmpty(inRepoNameORPath):
+            raise ValueError(f'{inRepoNameORPath=} cannot be None or Empty')
+        if isNoneOrEmpty(inBasePath):
+            raise ValueError(f'{inBasePath=} cannot be None or Empty')
+
+        inBasePath: Path = convertToPath(inBasePath)
+        inRepoNameORPath = str(inRepoNameORPath).strip()
+        repoPath = Path(inRepoNameORPath if os.sep in inRepoNameORPath else inBasePath / inRepoNameORPath)
+
+        return repoPath.resolve()
+
+    @classmethod
     def smart_init(
-            cls,
-            inRepoName: str,
-            inDestinationPath: str | PathLike[str] | Path,
-            inRemoteURLPrefix: str,
-            inBranch: str = None,
-            initSubmodules: bool = False
-    ) -> 'SmartRepo':
+        cls,
+        inRepoName: str,
+        inRepoConfig: RepoConfig,
+        inBranch: str = None,
+    ) -> Self:
         """
         Initializes a SmartRepo by
-            1. Locating the repository at inDestinationPath/inRepoName if it exists
-            2. Cloning the repository from inRemoteURLPrefix/inRepoName
+            1. Locating the repository at prop.GIT_ROOT/inRepoName if exists
+            2. Cloning the repository from prop.GIT_REMOTE_BASE_URL/inRepoName
             3. Switching to the specified branch if provided
-            4. Initializing submodules if opted for
+            4. Submodule Initialization if prop.GIT_SUBMODULE_INIT enabled
 
-        :param inRepoName:          Name of the repository to clone
-        :param inDestinationPath:   Base directory to locate or clone the given repository
-        :param inRemoteURLPrefix:   Remote URL prefix to use for cloning.
+        :param inRepoName:          Name of the Repository
+        :param inRepoConfig:        Configuration of the Repository
         :param inBranch:            Branch to check out (optional)
-                                    Defaults to remote and local HEAD
-                                    for new and existing repositories respectively if not specified
-        :param initSubmodules:      Whether to initialize submodules (optional) Defaults to False
+                                    Defaults to remote and local HEAD, for new and existing repositories respectively
         :raises Exception: If clone operation fails
         """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inRepoName):
             raise ValueError(f'{inRepoName=} cannot be None or Empty')
-        if isNoneOrEmpty(inDestinationPath):
-            raise ValueError(f'{inDestinationPath=} cannot be None or Empty')
-        if isNoneOrEmpty(inRemoteURLPrefix):
-            raise ValueError(f'{inRemoteURLPrefix=} cannot be None or Empty')
+        if isNoneOrEmpty(inRepoConfig):
+            raise ValueError(f'{inRepoConfig=} cannot be None or Empty')
 
         inRepoName = inRepoName.strip()
-        inRemoteURLPrefix = inRemoteURLPrefix.strip()
-
-        destinationPath: Path = convertToPath(inDestinationPath)
-        destinationPath.mkdir(parents=True, exist_ok=True)
+        destinationPath: Path = convertToPath(inRepoConfig.properties.GIT_ROOT)
 
         repoPath: Path = destinationPath / inRepoName
-        if SmartRepo.is_valid(repoPath):
-            repo = SmartRepo(repoPath)
+        repoPath.mkdir(parents=True, exist_ok=True)
+
+        try:
+            repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
             LOGGER.info(f'`{repoPath=}` already exists. Skipping clone...')
-        else:
-            repo = SmartRepo.clone_from(
-                url=f'{inRemoteURLPrefix}/{inRepoName}.git',
+        except InvalidGitRepositoryError as e:
+            repo = cls.clone_from(
+                url=f'{inRepoConfig.properties.GIT_REMOTE_BASE_URL}/{inRepoName}.git',
                 to_path=repoPath,
             )
             LOGGER.info(f'Cloned `{repoPath=}` successfully')
 
         if not isNoneOrEmpty(inBranch):
-            inBranch = inBranch.strip()
-            repo.execute(['git', 'switch', inBranch])
-        if initSubmodules:
-            # TODO: Define an env/config property for no. of parallel jobs
-            repo.execute(['git', 'submodule', 'update', '--init', '--recursive', '--jobs', '5'])
+            repo.execute(['git', 'switch', str(inBranch).strip()])
+        if inRepoConfig.properties.GIT_SUBMODULE_INIT:
+            repo.execute(
+                ['git', 'submodule', 'update', '--init', '--recursive', '--jobs', str(repo.properties.GIT_FETCH_JOBS)]
+            )
 
         return repo
 
     @classmethod
     async def asmart_init(
-            cls,
-            inRepoName: str,
-            inDestinationPath: str | PathLike[str] | Path,
-            inRemoteURLPrefix: str,
-            inBranch: str = None,
-            initSubmodules: bool = False
-    ) -> 'SmartRepo':
+        cls,
+        inRepoName: str,
+        inRepoConfig: RepoConfig,
+        inBranch: str = None,
+    ) -> Self:
         return await asyncio.to_thread(
-            SmartRepo.smart_init,
+            cls.smart_init,
             inRepoName,
-            inDestinationPath,
-            inRemoteURLPrefix,
-            inBranch,
-            initSubmodules
+            inRepoConfig,
+            inBranch
         )
 
     def _run_sync_command(
-            self,
-            inSteps: Generator[GitCMD, str, Any],
-            inExecutor: Callable[[List[str]], None]
+        self,
+        inSteps: Generator[GitCMD, str, Any],
+        inExecutor: Callable[[List[str]], None]
     ) -> Any:
         """
         Synchronous runner to execute given Git commands
@@ -554,9 +640,9 @@ class SmartRepo(Repo):
             return completed.value
 
     async def _run_async_command(
-            self,
-            inSteps: Generator[GitCMD, str, Any],
-            inExecutor: Callable[[List[str]], Coroutine[Any, Any, None]]
+        self,
+        inSteps: Generator[GitCMD, str, Any],
+        inExecutor: Callable[[List[str]], Coroutine[Any, Any, None]]
     ) -> Any:
         """
         Asynchronous runner to execute given Git commands

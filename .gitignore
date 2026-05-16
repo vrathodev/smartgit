@@ -177,3 +177,10 @@ test*.py
 # Logs
 *.log*
 logs/
+
+# Creds and configs
+*.env
+*.config.json
+
+# Copilot artifacts
+.github/artifacts/

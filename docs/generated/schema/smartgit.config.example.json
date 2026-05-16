@@ -1,0 +1,26 @@
+{
+    "properties": {
+        "GIT_ROOT": "C:/Users/example/workspace",
+        "GIT_REMOTE_BASE_URL": "https://github.com/my-org",
+        "GIT_SUBMODULE_INIT": true
+    },
+    "repos": {
+        "my-repo": {
+            "properties": {
+                "GIT_READONLY_MODE": true
+            }
+        }
+    },
+    "projects": {
+        "my-project": {
+            "repos": {
+                "this-repo": null,
+                "that-repo": null
+            },
+            "properties": {
+                "GIT_FETCH_JOBS": 5,
+                "GIT_SUBMODULE_INIT": true
+            }
+        }
+    }
+}

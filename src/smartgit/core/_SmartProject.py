@@ -1,14 +1,13 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""" @file smartgit/_SmartProject.py                                                                                  """
+""" @file smartgit.core._SmartProject.py                                                                             """
 """ Contains the definition of SmartProject class and related APIs                                                   """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import asyncio
-from os import PathLike
-from pathlib import Path
 from typing import *
 
-from smartgit.core._GitProperties import GitProperties
+from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
+from smartgit.config import ProjectConfig, SmartGitConfig
 from smartgit.core._SmartRepo import SmartRepo
 from smartgit.utils import *
 
@@ -16,106 +15,51 @@ from smartgit.utils import *
 LOGGER = getSmartLogger()
 
 
-class SmartProject(GitProperties):
+class SmartProject:
     """
     SmartProject -- A logical grouping of multiple related Git repositories
+
+    Operates in sync and async mode for batch processing
     """
 
     def __init__(
-            self,
-            inRepos: Optional[List[str | PathLike[str] | Path | SmartRepo]] = None,
-            inProjectRoot: Optional[str | PathLike[str] | Path] = None,
-            inCloneRemoteURLPrefix: Optional[str] = None
+        self,
+        inProjectName: str,
+        inProjectConfig: ProjectConfig,
     ):
         """
-        Initializes SmartProject with given repositories
-        If no repositories are provided, initializes with all the repositories detected under the project root.
-
-        :param inRepos:                     List of repositories names, paths or instances (optional)
-        :param inProjectRoot:               Base directory for the project repositories (optional)
-        :param inCloneRemoteURLPrefix:      Base URL for remote repositories (optional)
+        Initializes the SmartProject with the ProjectConfig
         """
-        GitProperties.__init__(self, inProjectRoot, inCloneRemoteURLPrefix)
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} can not be None or empty')
+        if isNoneOrEmpty(inProjectConfig):
+            raise ValueError(f'{inProjectConfig=} can not be None or empty')
+
+        inProjectName = inProjectName.strip()
+        self.__mProjectName: str = inProjectName
+        self.__mProjectConfig: ProjectConfig = inProjectConfig
         self.__mRepos: Set[SmartRepo] = set()
 
-        if isNoneOrEmpty(inRepos):
-            LOGGER.info(f'No repositories provided; scanning `{self.GitRoot}` to detect repositories from')
-        else:
-            self.__mRepos.update(inRepos)
+        for repoName, repoConfig in self.__mProjectConfig.repos.items():
+            self.__mRepos.add(
+                SmartRepo(
+                    path=repoConfig.properties.GIT_ROOT / repoName,
+                    inRepoConfig=repoConfig
+                )
+            )
 
     @property
     def repositories(self) -> FrozenSet[SmartRepo]:
         return frozenset(self.__mRepos)
 
-    def get_repo(self, inRepo: str | PathLike[str] | Path | SmartRepo) -> Optional[SmartRepo]:
-        """
-        Retrieves a repository from the project by name, path, or instance.
-
-        :param inRepo: Repository name, path, or SmartRepo instance
-        :return: The matching SmartRepo instance if found, otherwise None
-        """
-        LOGGER.entrance()
-
-        if isNoneOrEmpty(inRepo):
-            raise ValueError(f'{inRepo=} cannot be None or Empty')
-
-        if isinstance(inRepo, SmartRepo):
-            return inRepo if inRepo in self.__mRepos else None
-
-        repoName: str = self.make_repo_path(inRepo).name
-        for repo in self.__mRepos:
-            if repo.name == repoName:
-                return repo
-
-        return None
-
-    def add_repo(self, inRepo: str | PathLike[str] | Path | SmartRepo):
-        """
-        Adds a repository to the project.
-
-        :param inRepo: Repository name, path, or SmartRepo instance
-        :raises InvalidGitRepositoryError: If the provided path is not a valid Git repository
-        """
-        LOGGER.entrance()
-
-        if isNoneOrEmpty(inRepo):
-            raise ValueError(f'{inRepo=} cannot be None or Empty')
-
-        self.__mRepos.add(
-            inRepo if isinstance(inRepo, SmartRepo) else SmartRepo(self.make_repo_path(inRepo))
-        )
-
-    def remove_repo(self, inRepo: str | PathLike[str] | Path | SmartRepo):
-        """
-        Removes a repository from the project.
-
-        :param inRepo: Repository name, path, or SmartRepo instance
-        """
-        LOGGER.entrance()
-
-        if isNoneOrEmpty(inRepo):
-            raise ValueError(f'{inRepo=} cannot be None or Empty')
-
-        if isinstance(inRepo, SmartRepo):
-            self.__mRepos.discard(inRepo)
-            return
-
-        repoName: str = self.make_repo_path(inRepo).name
-        for repo in self.__mRepos:
-            if repo.name == repoName:
-                self.__mRepos.discard(repo)
-                break
-
     def fetch(
-            self,
-            inRemote: Optional[str] = None,
-            inBranch: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s) (sync)
         :param inRemote: [Optional] Name of the remote, default fetches from all remotes
-        :param inBranch: [Optional] Name of the branch, default fetches from all branches
         :param inSkipTags: [Optional] Should skip fetching the tags
         """
         LOGGER.entrance()
@@ -124,15 +68,13 @@ class SmartProject(GitProperties):
             repo.fetch(inRemote, inSkipTags)
 
     async def afetch(
-            self,
-            inRemote: Optional[str] = None,
-            inBranch: Optional[str] = None,
-            inSkipTags: bool = False
+        self,
+        inRemote: Optional[str] = None,
+        inSkipTags: bool = False
     ):
         """
         Fetches from the remote(s) (async)
         :param inRemote: [Optional] Name of the remote, default fetches from all remotes
-        :param inBranch: [Optional] Name of the branch, default fetches from all branches
         :param inSkipTags: [Optional] Should skip fetching the tags
         """
         LOGGER.entrance()
@@ -162,7 +104,7 @@ class SmartProject(GitProperties):
 
         await asyncio.gather(*(repo.aprune(inPruneBranches, inPruneTags) for repo in self.repositories))
 
-    def pull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    def pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes
 
@@ -174,7 +116,7 @@ class SmartProject(GitProperties):
         for repo in self.repositories:
             repo.pull(inBranchName, inRemoteName)
 
-    async def apull(self, inBranchName: str = None, inRemoteName: str = 'origin'):
+    async def apull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
         Pulls the latest changes (async)
 
@@ -186,90 +128,85 @@ class SmartProject(GitProperties):
         await asyncio.gather(*(repo.apull(inBranchName, inRemoteName) for repo in self.repositories))
 
     @classmethod
+    def from_config(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
+        """
+        Initializes a SmartProject from the configuration for the given project name
+
+        :param inProjectName:   Name of the repository
+        :param inConfig:        SmartGit Master Configuration instance
+        :returns: The initialized SmartProject instance
+        """
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+
+        inProjectName = inProjectName.strip()
+        try:
+            projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
+            if isNoneOrEmpty(projectConfig):
+                raise Exception(f'{projectConfig} is not configured in {inConfig.get_master_config_source()}')
+        except Exception as e:
+            LOGGER.exception(e)
+            raise
+
+        return cls(inProjectName, projectConfig)
+
+    @classmethod
     def smart_init(
-            cls,
-            inRepos: List[str | PathLike[str] | Path | SmartRepo],
-            inDestinationPath: str | PathLike[str] | Path,
-            inRemoteURLPrefix: str,
-            inBranch: str = None,
-            initSubmodules: bool = False
-    ) -> 'SmartProject':
+        cls,
+        inProjectName: str,
+        inProjectConfig: ProjectConfig,
+        inBranch: str = None
+    ) -> Self:
         """
         Initializes a SmartProject by
-            - Locating the repo at `inDestinationPath` using repo names/paths in `inRepos`
-            - Cloning the repo from `inRemoteURLPrefix` if couldn't be located
-            - Simply adding the SmartRepo to the project if already a SmartRepo instance
+            1. Locating the repository at prop.GIT_ROOT/inRepoName if exists
+            2. Cloning the repository from prop.GIT_REMOTE_BASE_URL/inRepoName
+            3. Switching to the specified branch if provided
+            4. Submodule Initialization if prop.GIT_SUBMODULE_INIT enabled
 
-        :param inRepos:             List of repository names/paths or SmartRepo instances
-        :param inDestinationPath:   Base directory to locate or clone the given repository
-        :param inRemoteURLPrefix:   Remote URL prefix to use for cloning.
+        :param inProjectName:       Name of the Project
+        :param inProjectConfig:     Configuration of the Project
         :param inBranch:            Branch to check out (optional)
-                                    Defaults to remote and local HEAD
-                                    for new and existing repositories respectively if not specified
-        :param initSubmodules:      Whether to initialize submodules (optional) Defaults to False
+                                    Defaults to remote and local HEAD, for new and existing repositories respectively
         :raises Exception: If clone operation fails
         """
         LOGGER.entrance()
 
-        gitProps = GitProperties(inDestinationPath, inRemoteURLPrefix)
-        smartRepos: List[SmartRepo] = list()
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+        if isNoneOrEmpty(inProjectConfig):
+            raise ValueError(f'{inProjectConfig=} cannot be None or Empty')
 
-        for repo in inRepos:
-            smartRepos.append(
-                repo if isinstance(repo, SmartRepo) else SmartRepo.smart_init(
-                    gitProps.make_repo_path(repo).name,
-                    gitProps.GitRoot,
-                    gitProps.GitCloneRemoteURLPrefix,
-                    inBranch,
-                    initSubmodules
-                )
-            )
+        inProjectName = inProjectName.strip()
 
-        return SmartProject(smartRepos, gitProps.GitRoot, gitProps.GitCloneRemoteURLPrefix)
+        for repoName, repoConfig in inProjectConfig.repos.items():
+            SmartRepo.smart_init(repoName.strip(), repoConfig, inBranch)
+
+        return cls(inProjectName, inProjectConfig)
 
     @classmethod
     async def asmart_init(
-            cls,
-            inRepos: List[str | PathLike[str] | Path | SmartRepo],
-            inDestinationPath: str | PathLike[str] | Path,
-            inRemoteURLPrefix: str,
-            inBranch: str = None,
-            initSubmodules: bool = False
-    ) -> 'SmartProject':
-        """
-        Initializes a SmartProject by
-            - Locating the repo at `inDestinationPath` using repo names/paths in `inRepos`
-            - Cloning the repo from `inRemoteURLPrefix` if couldn't be located
-            - Simply adding the SmartRepo to the project if already a SmartRepo instance
-
-        :param inRepos:             List of repository names/paths or SmartRepo instances
-        :param inDestinationPath:   Base directory to locate or clone the given repository
-        :param inRemoteURLPrefix:   Remote URL prefix to use for cloning.
-        :param inBranch:            Branch to check out (optional)
-                                    Defaults to remote and local HEAD
-                                    for new and existing repositories respectively if not specified
-        :param initSubmodules:      Whether to initialize submodules (optional) Defaults to False
-        :raises Exception: If clone operation fails
-        """
+        cls,
+        inProjectName: str,
+        inProjectConfig: ProjectConfig,
+        inBranch: str = None
+    ) -> Self:
         LOGGER.entrance()
 
-        gitProps = GitProperties(inDestinationPath, inRemoteURLPrefix)
-        smartRepos: List[SmartRepo] = list()
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+        if isNoneOrEmpty(inProjectConfig):
+            raise ValueError(f'{inProjectConfig=} cannot be None or Empty')
 
-        for repo in inRepos:
-            if not isNoneOrEmpty(repo) and isinstance(repo, SmartRepo):
-                smartRepos.append(repo)
-
-        smartRepos.extend(
-            await asyncio.gather(
-                *(SmartRepo.asmart_init(
-                    gitProps.make_repo_path(repo).name,
-                    gitProps.GitRoot,
-                    gitProps.GitCloneRemoteURLPrefix,
-                    inBranch,
-                    initSubmodules
-                ) for repo in inRepos if not (isNoneOrEmpty(repo) or isinstance(repo, SmartRepo)))
-            )
+        inProjectName = inProjectName.strip()
+        await asyncio.gather(
+            *(SmartRepo.asmart_init(
+                repoName.strip(),
+                repoConfig,
+                inBranch
+            ) for repoName, repoConfig in inProjectConfig.repos.items())
         )
 
-        return SmartProject(smartRepos, gitProps.GitRoot, gitProps.GitCloneRemoteURLPrefix)
+        return cls(inProjectName, inProjectConfig)

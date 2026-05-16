@@ -1,7 +1,6 @@
 from smartgit.utils._GenUtility import (
     convertToPath,
     isNoneOrEmpty,
-    readFile,
-    validateEnvVariable
+    readFile
 )
 from smartgit.utils._LoggingConfig import getSmartLogger

@@ -1,13 +1,11 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""" @file Utils.GenUtility.py                                                                                        """
+""" @file smartgit.utils._GenUtility.py                                                                              """
 """ Contains the definition of the general utility methods                                                           """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import errno
-import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Optional
 
 
 def assure(inParam: dict, inArg: str, ignoreError: bool = False):
@@ -51,63 +49,27 @@ def isNoneOrEmpty(inVal) -> bool:
         return inVal is None or len(inVal.strip()) == 0
     elif isinstance(inVal, dict):
         return (
-                inVal is None or
-                len(inVal) == 0 or
-                all(map(lambda x: isNoneOrEmpty(x) and isNoneOrEmpty(inVal[x]), inVal))
+            inVal is None or
+            len(inVal) == 0 or
+            all(map(lambda x: isNoneOrEmpty(x) and isNoneOrEmpty(inVal[x]), inVal))
         )
     elif isinstance(inVal, list) or isinstance(inVal, tuple):
         return (
-                inVal is None or
-                len(inVal) == 0 or
-                all(map(lambda x: isNoneOrEmpty(x), inVal))
+            inVal is None or
+            len(inVal) == 0 or
+            all(map(lambda x: isNoneOrEmpty(x), inVal))
         )
     else:
         return isNoneOrEmpty(str(inVal).strip())
 
 
-def readFile(inPath: Path, inMode: Optional[str] = 'r', inEncoding: Optional[str] = None) -> str | None:
+def readFile(inPath: Path, inMode: str = 'r', inEncoding: str = 'utf-8') -> str | None:
     """
     Reads the content of the file
 
     :throws FileNotFoundError if the file does not exist, IOError for other I/O errors
     """
-    with open(inPath, mode=inMode, encoding=inEncoding) as file:
+    with inPath.open(mode=inMode, encoding=inEncoding) as file:
         content = file.read()
 
     return content
-
-
-def validateEnvVariable(
-        inVarName: str,
-        inValidator: Callable[..., Any] = lambda x: not isNoneOrEmpty(x),
-        inFallbackValue: Optional[Any] = None,
-        inLogger: Optional[logging.Logger] = None) -> Any | None:
-    """
-    Validates the given Environment Variable using the given Validator method else returns the Fallback Value
-    :param inVarName: Name of the Environment Variable
-    :param inValidator: Validator method to validate the Environment Variable
-    :param inFallbackValue: Fallback Value to return if validation fails
-    :param inLogger: Logger instance to log messages
-    """
-    if isNoneOrEmpty(inVarName):
-        raise ValueError('Environment Variable name cannot be None or Empty')
-    if not callable(inValidator):
-        raise ValueError('inValidator must be a callable function')
-
-    inVarName = inVarName.strip()
-    value = os.getenv(inVarName)
-    if not value:
-        if inLogger:
-            inLogger.warning(f'env.`{inVarName}` is not set, falling back to `{inFallbackValue}`')
-        return inFallbackValue
-    elif inValidator(value):
-        value = value.strip()
-        if inLogger:
-            inLogger.info(f'Using env.{inVarName}={value}')
-        return value
-    else:
-        if inLogger:
-            inLogger.warning(
-                f'env.`{inVarName}` is set to an invalid value: `{value}`, falling back to `{inFallbackValue}`'
-            )
-        return inFallbackValue
