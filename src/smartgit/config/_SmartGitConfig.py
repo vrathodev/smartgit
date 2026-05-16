@@ -90,7 +90,7 @@ class SmartGitConfig(BaseSettings):
         Retrieves the master configuration source (*.config.json)
         :return: The master configuration source path
         """
-        configPath: Path = self.model_config.get('env_file')
+        configPath: Path = self.model_config.get('json_file')
         # Should never happen
         assert not isNoneOrEmpty(configPath)
 

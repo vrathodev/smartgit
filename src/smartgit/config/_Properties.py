@@ -12,9 +12,6 @@ from smartgit.common.constants import (
     SG_VAL_BRANCH_NAME_DEFAULT, SG_VAL_REMOTE_NAME_DEFAULT,
 )
 from smartgit.common.types import SmartURL
-from smartgit.utils import getSmartLogger
-
-LOGGER = getSmartLogger()
 
 StringProperty = StringConstraints(
     strip_whitespace=True,
@@ -105,8 +102,6 @@ class Properties(BaseModel):
 
         :return: The merged raw properties
         """
-        LOGGER.entrance()
-
         if inLeft is None:
             return inRight if inRight is not None else None
         elif inRight is None:
