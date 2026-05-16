@@ -7,8 +7,7 @@ import asyncio
 from typing import *
 
 from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
-from smartgit.config import CONFIG
-from smartgit.config import ProjectConfig
+from smartgit.config import ProjectConfig, SmartGitConfig
 from smartgit.core._SmartRepo import SmartRepo
 from smartgit.utils import *
 
@@ -129,11 +128,12 @@ class SmartProject:
         await asyncio.gather(*(repo.apull(inBranchName, inRemoteName) for repo in self.repositories))
 
     @classmethod
-    def from_config(cls, inProjectName: str) -> Self:
+    def from_config(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
         """
         Initializes a SmartProject from the configuration for the given project name
 
         :param inProjectName:   Name of the repository
+        :param inConfig:        SmartGit Master Configuration instance
         :returns: The initialized SmartProject instance
         """
         LOGGER.entrance()
@@ -143,9 +143,9 @@ class SmartProject:
 
         inProjectName = inProjectName.strip()
         try:
-            projectConfig: ProjectConfig = CONFIG.get_project_config(inProjectName)
+            projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
             if isNoneOrEmpty(projectConfig):
-                raise Exception(f'{projectConfig} is not configured in {CONFIG.get_master_config_source()}')
+                raise Exception(f'{projectConfig} is not configured in {inConfig.get_master_config_source()}')
         except Exception as e:
             LOGGER.exception(e)
             raise

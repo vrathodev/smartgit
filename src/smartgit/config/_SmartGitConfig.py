@@ -4,6 +4,7 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import copy
+import json
 import os
 from pathlib import Path
 from typing import Any, Optional
@@ -30,12 +31,70 @@ class SmartGitConfig(BaseSettings):
     """
     SmartGitConfig -- Configuration master settings for SmartGit
     """
+
+    def __init__(self, inJSONConfigPath: Optional[Path] = None, inEnvConfigPath: Optional[Path] = None, **kwargs):
+        """
+        Forward constructor to parameterize the Config path
+        as model_config is initialized at compile time.
+        :param inJSONConfigPath:    The Configuration (config.json) file path
+        :param inEnvConfigPath:     The Environment Configuration (.env) file path
+        :param kwargs:              BaseSettings recognized Keyword-args
+        """
+
+        def load_config(inConfig: Optional[Path]) -> Optional[dict[str, Any]]:
+            """Internal helper method to load config"""
+            if isNoneOrEmpty(inConfig):
+                LOGGER.debug(f'`{inConfig=}` is invalid/empty')
+                return None
+            if not (inConfig.exists() and inConfig.is_file()):
+                LOGGER.debug(f'Configuration `{inConfig}` either does not exist or is not a file.')
+                return None
+
+            try:
+                config: dict[str, Any] = None
+                with inConfig.open(mode='r', encoding='utf-8') as file:
+                    config = json.load(file)
+                return config
+            except (json.JSONDecodeError, Exception) as e:
+                LOGGER.exception(f'Failed to load configuration from `{inConfig.resolve()}`: {e}')
+                return None
+
+        # Load JSON configuration
+        configSource: Path = None
+        config: Optional[dict[str, Any]] = load_config(inJSONConfigPath)
+        if config is None:
+            LOGGER.debug(f'Proceeding to load the fallback configuration from env.{SG_KEY_CONFIG_PATH}...')
+
+            fallbackConfigPath: Path = Path(os.getenv(SG_KEY_CONFIG_PATH, SG_VAL_CONFIG_PATH_DEFAULT)).resolve()
+            config = load_config(fallbackConfigPath)
+            if config is None:
+                LOGGER.warning('Proceeding with the empty configuration to fallback to the Config models defaults')
+                config = dict()
+            else:
+                configSource = fallbackConfigPath
+        else:
+            configSource = Path(inJSONConfigPath).resolve()
+
+        # Load Environment configuration
+        envConfigSource: Path = None
+        if isNoneOrEmpty(inEnvConfigPath):
+            envConfigSource = Path(os.getenv(SG_KEY_DOTENV_PATH, SG_VAL_DOTENV_PATH_DEFAULT)).resolve()
+            if not (envConfigSource.exists() and envConfigSource.is_file()):
+                LOGGER.warning(f'Failed to load environment configuration from `{inEnvConfigPath}`, skipping...')
+        else:
+            envConfigSource = Path(inEnvConfigPath).resolve()
+
+        if not isNoneOrEmpty(configSource):
+            LOGGER.info(f'SmartGit configured from file: `{configSource}`')
+        if not isNoneOrEmpty(envConfigSource):
+            LOGGER.info(f'SmartGit configured from file: `{envConfigSource}`')
+
+        super().__init__(**{**config, **kwargs}, _env_file=envConfigSource)
+
     model_config = SettingsConfigDict(
         case_sensitive=False,
         env_prefix='GIT_',
         env_nested_delimiter='',
-        env_file=Path(os.getenv(SG_KEY_DOTENV_PATH, SG_VAL_DOTENV_PATH_DEFAULT)).resolve(),
-        json_file=Path(os.getenv(SG_KEY_CONFIG_PATH, SG_VAL_CONFIG_PATH_DEFAULT)).resolve(),
         extra='ignore',
         frozen=True,
         json_schema_extra={
@@ -71,7 +130,8 @@ class SmartGitConfig(BaseSettings):
     )
 
     repos: Optional[dict[str, Optional[RepoConfig]]] = Field(
-        description='Standalone repositories mapped by repository name or path to optional repository-specific configuration.',
+        description='Standalone repositories mapped by repository name or path to optional repository-specific '
+                    'configuration.',
         default_factory=dict,
     )
     projects: Optional[dict[str, Optional[ProjectConfig]]] = Field(
@@ -90,7 +150,7 @@ class SmartGitConfig(BaseSettings):
         Retrieves the master configuration source (*.config.json)
         :return: The master configuration source path
         """
-        configPath: Path = self.model_config.get('env_file')
+        configPath: Optional[Path] = self.model_config.get('json_file')
         # Should never happen
         assert not isNoneOrEmpty(configPath)
 
@@ -198,14 +258,17 @@ class SmartGitConfig(BaseSettings):
             LOGGER.debug('Invalid/empty global `properties` configured')
 
         # Merge/propagate the global props to that of the global repos
-        for name, repoConfig in globalRepos.items():
-            if repoConfig is None:
-                repoConfig: dict['str', Any] = dict()
-                repoConfig['properties'] = None
+        if isNoneOrEmpty(globalProps):
+            LOGGER.debug('Empty global `properties` configured')
+        else:
+            for name, repoConfig in globalRepos.items():
+                if repoConfig is None:
+                    repoConfig: dict['str', Any] = dict()
+                    repoConfig['properties'] = None
 
-            repoProps: Optional[dict[str, Any]] = repoConfig.get('properties')
-            repoConfig['properties'] = Properties.merge(repoProps, globalProps)
-            globalRepos[name] = repoConfig
+                repoProps: Optional[dict[str, Any]] = repoConfig.get('properties')
+                repoConfig['properties'] = Properties.merge(repoProps, globalProps)
+                globalRepos[name] = repoConfig
 
         # Resolving projects
         globalProjects: Optional[dict[str, Any]] = inRawConfig.get('projects')
@@ -260,7 +323,3 @@ class SmartGitConfig(BaseSettings):
                 projectRepos[repoName] = repoConfig
 
         return inRawConfig
-
-
-# Global Singleton Configuration instance
-CONFIG = SmartGitConfig()

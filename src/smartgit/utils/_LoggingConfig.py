@@ -155,7 +155,7 @@ def configSmartLogger() -> SmartLogger:
             dictConfig(json.load(file))
 
         logger = logging.getLogger(SG_VAL_LOGGER_NAME)
-        logger.info(f'Logging configured from file: {log_config_path}')
+        logger.info(f'Logging configured from file: `{log_config_path}`')
     except Exception as e:
         configLogging(
             inLevel=os.getenv(SG_KEY_LOG_LEVEL),
