@@ -28,15 +28,15 @@ from smartgit.utils._GenUtility import createDir, isNoneOrEmpty
 CWD = Path.cwd().resolve()
 
 
-class SmartLogger(logging.Logger):
+class SmartLoggerAdapter(logging.LoggerAdapter):
     """
-    Custom logger that extends logging.Logger with additional functionality:
+    Logger adapter that extends the standard logger API with SmartGit-specific helpers:
     1. Function entrance logging
-    2. Filtering out third-party logs like gitpython
+    2. Structured visual separators for log output
     """
 
-    def __init__(self, name: str, level: int = logging.NOTSET):
-        super().__init__(name, level)
+    def __init__(self, inLogger: logging.Logger, inExtra: Optional[dict[str, Any]] = None):
+        super().__init__(inLogger, extra=inExtra or {}, merge_extra=True)
 
     def entrance(self, inFnName: Optional[str] = None, inLevel: int = logging.DEBUG):
         """
@@ -70,7 +70,7 @@ class SmartLogger(logging.Logger):
             else:
                 inFnName = "<UNKNOWN>"
 
-        self.log(inLevel, f'+++ ENTER {inFnName}')
+        self.log(inLevel, '+++ ENTER %s', inFnName, stacklevel=2)
 
     def header(self, inMessage: str, inLineLength: int = 100):
         """Prints a formatted header with the given message centered within a line of specified length."""
@@ -79,9 +79,9 @@ class SmartLogger(logging.Logger):
         firstLen = (inLineLength - messageLen - 2) // 2
         secLen = inLineLength - messageLen - 2 - firstLen
 
-        self.info('=' * inLineLength)
-        self.info('=' * firstLen + f' {inMessage.upper()} ' + '=' * secLen)
-        self.info('=' * inLineLength)
+        self.info('%s', '=' * inLineLength, stacklevel=2)
+        self.info('%s %s %s', '=' * firstLen, inMessage.upper(), '=' * secLen, stacklevel=2)
+        self.info('%s', '=' * inLineLength, stacklevel=2)
 
     def footer(self, inMessage: str, inLineLength: int = 100):
         """Prints a formatted footer with the given message centered within a line of specified length."""
@@ -90,7 +90,7 @@ class SmartLogger(logging.Logger):
         firstLen = (inLineLength - messageLen - 2) // 2
         secLen = inLineLength - messageLen - 2 - firstLen
 
-        self.info('=' * firstLen + f' {inMessage} ' + '=' * secLen)
+        self.info('%s %s %s', '=' * firstLen, inMessage, '=' * secLen, stacklevel=2)
 
     def highlight(self, inMessage: str, inLineLength: int = 100):
         """Prints a highlighted message with the given text centered within a line of specified length."""
@@ -99,22 +99,19 @@ class SmartLogger(logging.Logger):
         firstLen = (inLineLength - messageLen - 2) // 2
         secLen = inLineLength - messageLen - 2 - firstLen
 
-        self.info('+' * firstLen + f' {inMessage} ' + '+' * secLen)
+        self.info('%s %s %s', '+' * firstLen, inMessage, '+' * secLen, stacklevel=2)
 
     @classmethod
     def logEntrance(cls, inLogger=None):
         """
-        Decorator to log function entrance
-        Usage: @SimbaLogger.logEntrance(logger)
+        Decorator to log function entrance.
+        Usage: @SmartLoggerAdapter.logEntrance(logger)
         """
 
         def decorator(func):
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
-                if inLogger:
-                    logger = inLogger
-                else:
-                    logger = getSmartLogger()
+                logger = inLogger if inLogger is not None else getSmartLogger()
 
                 logger.entrance(func.__name__)
 
@@ -126,42 +123,38 @@ class SmartLogger(logging.Logger):
         return decorator
 
 
-def getSmartLogger() -> SmartLogger:
-    f"""
-    Returns a configured SmartLogger instance
-
-    To be used across the project for consistent logging.
+@functools.lru_cache(maxsize=1)
+def getSmartLogger() -> SmartLoggerAdapter:
     """
-    global _LOGGER
-    return _LOGGER
+    Returns the shared SmartGit logger adapter without configuring logging.
+
+    Logging configuration remains the responsibility of explicit bootstrap code.
+    """
+    return SmartLoggerAdapter(logging.getLogger(SG_VAL_LOGGER_NAME))
 
 
 @functools.lru_cache(maxsize=1)
-def configSmartLogger() -> SmartLogger:
+def configSmartLogger() -> SmartLoggerAdapter:
     """
-    Configures SmartLogger from JSON config file if available, else uses default configuration.
+    Configures SmartGit logging from JSON config file if available, else uses default configuration.
     Allows overriding config via environment variable i.e. SMARTGIT_LOG_PATH, SMARTGIT_LOG_LEVEL, etc.
     """
-    logging.setLoggerClass(SmartLogger)
-
     log_config_path = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
     log_config_path = os.path.abspath(
         log_config_path if log_config_path else str(SG_VAL_LOG_CONFIG_DEFAULT)
     )
 
-    logger = None
+    logger = getSmartLogger()
     try:
         with open(log_config_path) as file:
             dictConfig(json.load(file))
 
-        logger = logging.getLogger(SG_VAL_LOGGER_NAME)
         logger.info(f'Logging configured from file: `{log_config_path}`')
     except Exception as e:
         configLogging(
             inLevel=os.getenv(SG_KEY_LOG_LEVEL),
             inLogFilePath=os.getenv(SG_KEY_LOG_PATH)
         )
-        logger = logging.getLogger(SG_VAL_LOGGER_NAME)
         logger.warning(f'Failed to load logging configuration from {log_config_path}: {e}')
     finally:
         return logger
@@ -198,7 +191,3 @@ def configLogging(
         ],
         force=True
     )
-
-
-# Logging instance cache
-_LOGGER: Optional['SmartLogger'] = configSmartLogger()
