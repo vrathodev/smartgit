@@ -15,7 +15,7 @@ from pydantic_settings import BaseSettings, JsonConfigSettingsSource, PydanticBa
 from smartgit.config._ProjectConfig import ProjectConfig
 from smartgit.config._Properties import Properties
 from smartgit.config._RepoConfig import RepoConfig
-from smartgit.config._SmartGitConfigLoader import ConfigType
+from smartgit.config._ConfigTypeMeta import ConfigType
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
 
 LOGGER = getSmartLogger()
