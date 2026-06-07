@@ -14,6 +14,7 @@ from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
 from smartgit.common.types import SmartPath
+from smartgit.config import ConfigType
 from smartgit.config import Properties, RepoConfig, SmartGitConfig
 from smartgit.utils import *
 
@@ -515,7 +516,7 @@ class SmartRepo(Repo):
         try:
             repoConfig: Optional[RepoConfig] = inConfig.get_repo_config(inRepoName)
             if isNoneOrEmpty(repoConfig):
-                raise Exception(f'{inRepoName} is not configured in {inConfig.get_master_config_source()}')
+                raise Exception(f'{inRepoName} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
         except Exception as e:
             LOGGER.exception(e)
             raise

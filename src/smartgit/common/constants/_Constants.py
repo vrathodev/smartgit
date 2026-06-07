@@ -8,7 +8,7 @@ from pathlib import Path
 SG_VAL_APP_NAME: str                    = 'smartgit'
 SG_VAL_BASE_DIR: Path                   = Path(__file__).parent.parent.parent.parent.parent.resolve()
 SG_VAL_CONFIG_FILE_DEFAULT: str         = 'smartgit.config.json'
-SG_VAL_DOTENV_FILE_DEFAULT: str         = '.env'
+SG_VAL_DOTENV_FILE_DEFAULT: str         = 'smartgit.config.env'
 SG_VAL_LOG_CONFIG_FILE_DEFAULT: str     = 'logging.config.json'
 
 # Environment variables
