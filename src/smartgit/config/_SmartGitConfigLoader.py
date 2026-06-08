@@ -84,7 +84,7 @@ class SmartGitConfigLoader:
             LOGGER.warning('Failed to load any of the default dotenv configuration sources, skipping')
 
         if not isNoneOrEmpty(inJSONConfigPath):
-            inJSONConfigPath = Path(inJSONConfigPath)
+            inJSONConfigPath = Path(inJSONConfigPath).resolve().absolute()
             return SmartGitConfig(inJSONConfigPath=inJSONConfigPath, inDotEnvConfigPath=currDotEnvConfigPath)
 
         config: SmartGitConfig = SmartGitConfig()

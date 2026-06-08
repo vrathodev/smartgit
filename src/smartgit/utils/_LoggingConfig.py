@@ -16,7 +16,7 @@ from smartgit.common.constants import (
     SG_KEY_LOG_CONFIG_PATH,
     SG_KEY_LOG_LEVEL,
     SG_KEY_LOG_PATH,
-    SG_VAL_LOGGER_NAME,
+    SG_VAL_CORE_LOGGER_NAME,
     SG_VAL_LOG_CONFIG_DEFAULT,
     SG_VAL_LOG_DATETIME_FORMAT,
     SG_VAL_LOG_FORMAT,
@@ -123,39 +123,46 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
         return decorator
 
 
-@functools.lru_cache(maxsize=1)
-def getSmartLogger() -> SmartLoggerAdapter:
+@functools.lru_cache(maxsize=2)
+def getSmartLogger(inLoggerName: str = None) -> SmartLoggerAdapter:
     """
     Returns the shared SmartGit logger adapter without configuring logging.
-
     Logging configuration remains the responsibility of explicit bootstrap code.
+
+    :param inLoggerName: Name of the logger instance to configure, defaults to 'smartgit'
     """
-    return SmartLoggerAdapter(logging.getLogger(SG_VAL_LOGGER_NAME))
+    if isNoneOrEmpty(inLoggerName):
+        inLoggerName = SG_VAL_CORE_LOGGER_NAME
+    inLoggerName = inLoggerName.strip()
+
+    return SmartLoggerAdapter(logging.getLogger(inLoggerName))
 
 
 @functools.lru_cache(maxsize=1)
-def configSmartLogger() -> SmartLoggerAdapter:
+def configSmartLogger(inLoggerName: str = None) -> SmartLoggerAdapter:
     """
     Configures SmartGit logging from JSON config file if available, else uses default configuration.
     Allows overriding config via environment variable i.e. SMARTGIT_LOG_PATH, SMARTGIT_LOG_LEVEL, etc.
+
+    :param inLoggerName: Name of the logger instance to configure, defaults to 'smartgit'
     """
-    log_config_path = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
-    log_config_path = os.path.abspath(
-        log_config_path if log_config_path else str(SG_VAL_LOG_CONFIG_DEFAULT)
+    logConfigPath = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
+    logConfigPath = os.path.abspath(
+        logConfigPath if logConfigPath else str(SG_VAL_LOG_CONFIG_DEFAULT)
     )
 
-    logger = getSmartLogger()
+    logger = getSmartLogger(inLoggerName)
     try:
-        with open(log_config_path) as file:
+        with open(logConfigPath) as file:
             dictConfig(json.load(file))
 
-        logger.info(f'Logging configured from file: `{log_config_path}`')
+        logger.info(f'Logging configured from file: `{logConfigPath}`')
     except Exception as e:
         configLogging(
             inLevel=os.getenv(SG_KEY_LOG_LEVEL),
             inLogFilePath=os.getenv(SG_KEY_LOG_PATH)
         )
-        logger.warning(f'Failed to load logging configuration from {log_config_path}: {e}')
+        logger.warning(f'Failed to load logging configuration from {logConfigPath}: {e}')
     finally:
         return logger
 
