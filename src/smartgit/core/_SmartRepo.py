@@ -591,13 +591,13 @@ class SmartRepo(Repo):
 
         try:
             repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
-            LOGGER.info(f'`{repoPath=}` already exists. Skipping clone...')
+            LOGGER.info(f'`{str(repoPath)}` already exists. Skipping clone...')
         except InvalidGitRepositoryError as e:
             repo = cls.clone_from(
                 url=f'{inRepoConfig.properties.GIT_REMOTE_BASE_URL}/{inRepoName}.git',
                 to_path=repoPath,
             )
-            LOGGER.info(f'Cloned `{repoPath=}` successfully')
+            LOGGER.info(f'Cloned `{str(repoPath)}` successfully')
 
         if not isNoneOrEmpty(inBranch):
             repo.execute(['git', 'switch', str(inBranch).strip()])

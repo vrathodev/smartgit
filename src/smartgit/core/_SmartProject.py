@@ -50,6 +50,18 @@ class SmartProject:
             )
 
     @property
+    def config(self) -> ProjectConfig:
+        return self.__mProjectConfig
+
+    @property
+    def name(self) -> str:
+        return self.__mProjectName
+
+    @property
+    def properties(self):
+        return self.__mProjectConfig.properties
+
+    @property
     def repositories(self) -> FrozenSet[SmartRepo]:
         return frozenset(self.__mRepos)
 

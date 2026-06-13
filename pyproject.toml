@@ -12,6 +12,9 @@ dependencies = [
     "typer[all]>=0.26.4",
 ]
 
+[project.scripts]
+smartgit = "smartgit.app.cli.main:main"
+
 [project.urls]
 Homepage = "https://github.com/vrathodev/smartgit"
 Repository = "https://github.com/vrathodev/smartgit"
