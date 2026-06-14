@@ -18,11 +18,14 @@ from smartgit.utils import configSmartLogger
 
 CLI_COMMAND_MODULES = (_Project, _Repo)
 
+# CLI Logger
+LOGGER = configSmartLogger(SG_VAL_CLI_LOGGER_NAME)
+
 
 @CLI_APP.callback()
 def main_callback(
-    inCTX: Context,
-    inConfigPath: Annotated[
+    ctx: Context,
+    config_path: Annotated[
         Optional[Path],
         Option('--config', help='Path to an explicit SmartGit configuration file.'),
     ] = None,
@@ -30,16 +33,18 @@ def main_callback(
     """
     Initializes per-invocation CLI context
 
-    :param inCTX:           Typer shared-context for associated CLI invocation
-    :param inConfigPath:    [Optional] Explicit SmartGit config file path. Defaults to None
+    :param ctx:             Typer shared-context for associated CLI invocation
+    :param config_path:     [Optional] Explicit SmartGit config file path. Defaults to None
     """
+    LOGGER.entrance()
     try:
         configSmartLogger(SG_VAL_CORE_LOGGER_NAME)
         configSmartLogger(SG_VAL_CLI_LOGGER_NAME)
 
-        inCTX.ensure_object(dict)
-        inCTX.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=inConfigPath)
+        ctx.ensure_object(dict)
+        ctx.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=config_path)
     except Exception as error:
+        LOGGER.exception(error)
         typer.echo(f'Error: {error}', err=True)
         raise typer.Exit(code=1) from error
 
@@ -48,4 +53,9 @@ def main() -> None:
     """
     SmartGit CLI entrypoint
     """
-    asyncio.run(CLI_APP())
+    try:
+        asyncio.run(CLI_APP())
+    except Exception as error:
+        LOGGER.exception(error)
+        typer.echo(f'Error: {error}', err=True)
+        raise typer.Exit(code=1) from error

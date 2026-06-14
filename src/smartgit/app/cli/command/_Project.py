@@ -6,7 +6,6 @@
 import asyncio
 from typing import Annotated, Optional
 
-import typer
 from typer import Argument, Context, Option
 
 from smartgit.app.cli.apps import CLI_APP_PROJECT
@@ -42,19 +41,15 @@ def fetch(
     ] = False,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-        asyncio.run(
-            smartProject.afetch(
-                inRemote=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
-                inSkipTags=not fetch_tags
-            )
+
+    config: SmartGitConfig = ctx.obj['config']
+    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
+    asyncio.run(
+        smartProject.afetch(
+            inRemote=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
+            inSkipTags=not fetch_tags
         )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True)
-        raise typer.Exit(code=1) from error
+    )
 
 
 @CLI_APP_PROJECT.command('prune')
@@ -80,19 +75,15 @@ def prune(
     ] = False,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-        asyncio.run(
-            smartProject.aprune(
-                inPruneBranches=prune_branches,
-                inPruneTags=prune_tags,
-            )
+
+    config: SmartGitConfig = ctx.obj['config']
+    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
+    asyncio.run(
+        smartProject.aprune(
+            inPruneBranches=prune_branches,
+            inPruneTags=prune_tags,
         )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True)
-        raise typer.Exit(code=1) from error
+    )
 
 
 @CLI_APP_PROJECT.command('pull')
@@ -118,25 +109,21 @@ def pull(
     ] = None,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-        asyncio.run(
-            smartProject.apull(
-                inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-                inRemoteName=str(remote).strip() if not isNoneOrEmpty(
-                    remote
-                ) else smartProject.properties.GIT_DEFAULT_REMOTE,
-            )
+
+    config: SmartGitConfig = ctx.obj['config']
+    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
+    asyncio.run(
+        smartProject.apull(
+            inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
+            inRemoteName=str(remote).strip() if not isNoneOrEmpty(
+                remote
+            ) else smartProject.properties.GIT_DEFAULT_REMOTE,
         )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True)
-        raise typer.Exit(code=1) from error
+    )
 
 
 @CLI_APP_PROJECT.command('init')
-def init_project(
+def init(
     ctx: Context,
     project: Annotated[
         str,
@@ -151,17 +138,13 @@ def init_project(
     ] = None,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-        asyncio.run(
-            SmartProject.asmart_init(
-                inProjectName=smartProject.name,
-                inProjectConfig=smartProject.config,
-                inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-            )
+
+    config: SmartGitConfig = ctx.obj['config']
+    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
+    asyncio.run(
+        SmartProject.asmart_init(
+            inProjectName=smartProject.name,
+            inProjectConfig=smartProject.config,
+            inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
         )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True)
-        raise typer.Exit(code=1) from error
+    )

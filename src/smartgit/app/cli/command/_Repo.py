@@ -6,7 +6,6 @@
 from pathlib import Path
 from typing import Annotated, Optional
 
-import typer
 from typer import Argument, Context, Option
 
 from smartgit.app.cli.apps import CLI_APP_REPO
@@ -80,19 +79,15 @@ def create_branch(
     ] = None,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        repo: SmartRepo = resolve_repo(repo_name, config)
-        repo.create_branch(
-            inBranchName=branch,
-            inStartPoint=create_from,
-            inPushRemote=should_push,
-            inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
-        )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True, color=True)
-        raise typer.Exit(code=1) from error
+
+    config: SmartGitConfig = ctx.obj['config']
+    repo: SmartRepo = resolve_repo(repo_name, config)
+    repo.create_branch(
+        inBranchName=branch,
+        inStartPoint=create_from,
+        inPushRemote=should_push,
+        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+    )
 
 
 @CLI_APP_REPO.command('delete-branch')
@@ -132,19 +127,15 @@ def delete_branch(
     ] = None,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        repo: SmartRepo = resolve_repo(repo_name, config)
-        repo.delete_branch(
-            inBranchName=branch,
-            inFromRemote=from_remote,
-            inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
-            inForce=force,
-        )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True, color=True)
-        raise typer.Exit(code=1) from error
+
+    config: SmartGitConfig = ctx.obj['config']
+    repo: SmartRepo = resolve_repo(repo_name, config)
+    repo.delete_branch(
+        inBranchName=branch,
+        inFromRemote=from_remote,
+        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+        inForce=force,
+    )
 
 
 @CLI_APP_REPO.command('pull')
@@ -173,17 +164,13 @@ def pull(
     ] = None,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        repo: SmartRepo = resolve_repo(repo_name, config)
-        repo.pull(
-            inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-            inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
-        )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True, color=True)
-        raise typer.Exit(code=1) from error
+
+    config: SmartGitConfig = ctx.obj['config']
+    repo: SmartRepo = resolve_repo(repo_name, config)
+    repo.pull(
+        inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
+        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+    )
 
 
 @CLI_APP_REPO.command('init')
@@ -202,15 +189,11 @@ def init(
     ] = None,
 ):
     LOGGER.entrance()
-    try:
-        config: SmartGitConfig = ctx.obj['config']
-        repo: SmartRepo = resolve_repo(repo_name, config)
-        SmartRepo.smart_init(
-            inRepoName=repo.name,
-            inRepoConfig=repo.config,
-            inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-        )
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True, color=True)
-        raise typer.Exit(code=1) from error
+
+    config: SmartGitConfig = ctx.obj['config']
+    repo: SmartRepo = resolve_repo(repo_name, config)
+    SmartRepo.smart_init(
+        inRepoName=repo.name,
+        inRepoConfig=repo.config,
+        inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
+    )
