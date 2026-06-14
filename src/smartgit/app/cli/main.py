@@ -38,7 +38,7 @@ def main_callback(
         configSmartLogger(SG_VAL_CLI_LOGGER_NAME)
 
         inCTX.ensure_object(dict)
-        inCTX.obj['config'] = SmartGitConfigLoader().load(inConfigPath)
+        inCTX.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=inConfigPath)
     except Exception as error:
         typer.echo(f'Error: {error}', err=True)
         raise typer.Exit(code=1) from error

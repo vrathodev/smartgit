@@ -11,31 +11,12 @@ from typer import Argument, Context, Option
 
 from smartgit.app.cli.apps import CLI_APP_PROJECT
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME
-from smartgit.config import ConfigType
-from smartgit.config import ProjectConfig
 from smartgit.config import SmartGitConfig
 from smartgit.core import SmartProject
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
 
 # CLI Logger
 LOGGER = getSmartLogger(SG_VAL_CLI_LOGGER_NAME)
-
-
-def resolve_project(inProjectName: str, inConfig: SmartGitConfig) -> SmartProject:
-    """
-    Resolves the SmartProject instance from the CLI project name
-    """
-    LOGGER.entrance()
-
-    if isNoneOrEmpty(inProjectName):
-        raise ValueError(f'{inProjectName=} cannot be None or empty')
-
-    projectName = inProjectName.strip()
-    projectConfig: ProjectConfig = inConfig.get_project_config(inProjectName=projectName)
-    if isNoneOrEmpty(projectConfig):
-        raise ValueError(f'Project `{projectName}` not configured in `{str(inConfig.get_config_source(ConfigType.JSON))}`')
-
-    return SmartProject(inProjectName=projectName, inProjectConfig=projectConfig)
 
 
 @CLI_APP_PROJECT.command('fetch')
@@ -139,7 +120,7 @@ def pull(
     LOGGER.entrance()
     try:
         config: SmartGitConfig = ctx.obj['config']
-        smartProject: SmartProject = resolve_project(inProjectName=project, inConfig=config)
+        smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
         asyncio.run(
             smartProject.apull(
                 inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
@@ -172,7 +153,7 @@ def init_project(
     LOGGER.entrance()
     try:
         config: SmartGitConfig = ctx.obj['config']
-        smartProject: SmartProject = resolve_project(inProjectName=project, inConfig=config)
+        smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
         asyncio.run(
             SmartProject.asmart_init(
                 inProjectName=smartProject.name,
