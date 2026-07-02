@@ -18,8 +18,9 @@ from smartgit.utils import configSmartLogger
 
 CLI_COMMAND_MODULES = (_Config, _Project, _Repo)
 
-# CLI Logger
+# Logger instances
 LOGGER = configSmartLogger(SG_VAL_CLI_LOGGER_NAME)
+_ = configSmartLogger(SG_VAL_CORE_LOGGER_NAME)
 
 
 @CLI_APP.callback()
@@ -37,10 +38,12 @@ def main_callback(
     :param config_path:     [Optional] Explicit SmartGit config file path. Defaults to None
     """
     LOGGER.entrance()
-    try:
-        configSmartLogger(SG_VAL_CORE_LOGGER_NAME)
-        configSmartLogger(SG_VAL_CLI_LOGGER_NAME)
 
+    if ctx.resilient_parsing:
+        LOGGER.debug('Invoked with Resilient Parsing mode ON, skipping...')
+        return
+
+    try:
         ctx.ensure_object(dict)
         ctx.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=config_path)
     except Exception as error:
