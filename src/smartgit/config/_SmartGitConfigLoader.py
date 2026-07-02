@@ -11,7 +11,6 @@ from pydantic_core import ValidationError
 from smartgit.common.constants import (
     SG_VAL_DOTENV_FILE_DEFAULT,
 )
-
 from smartgit.config._ConfigTypeMeta import ConfigSource, ConfigSourceType, ConfigType
 from smartgit.config._SmartGitConfig import SmartGitConfig
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
@@ -87,7 +86,7 @@ class SmartGitConfigLoader:
             inJSONConfigPath = Path(inJSONConfigPath).resolve().absolute()
             return SmartGitConfig(inJSONConfigPath=inJSONConfigPath, inDotEnvConfigPath=currDotEnvConfigPath)
 
-        config: SmartGitConfig = SmartGitConfig()
+        config: SmartGitConfig
         for source in self.__mJSONSources:
             try:
                 config = SmartGitConfig(

@@ -17,6 +17,11 @@ CLI_APP_PROJECT = Typer(
     no_args_is_help=True
 )
 
+CLI_APP_CONFIG = Typer(
+    name=f'{SG_VAL_APP_NAME}.config',
+    no_args_is_help=True
+)
+
 CLI_APP = Typer(
     name=SG_VAL_APP_NAME,
     no_args_is_help=True
@@ -24,3 +29,4 @@ CLI_APP = Typer(
 
 CLI_APP.add_typer(CLI_APP_REPO, name='repo')
 CLI_APP.add_typer(CLI_APP_PROJECT, name='project')
+CLI_APP.add_typer(CLI_APP_CONFIG, name='config')

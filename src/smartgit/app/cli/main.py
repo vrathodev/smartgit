@@ -11,12 +11,12 @@ import typer
 from typer import Context, Option
 
 from smartgit.app.cli.apps import CLI_APP
-from smartgit.app.cli.command import _Project, _Repo
+from smartgit.app.cli.command import _Config, _Project, _Repo
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME, SG_VAL_CORE_LOGGER_NAME
 from smartgit.config import SmartGitConfigLoader
 from smartgit.utils import configSmartLogger
 
-CLI_COMMAND_MODULES = (_Project, _Repo)
+CLI_COMMAND_MODULES = (_Config, _Project, _Repo)
 
 # CLI Logger
 LOGGER = configSmartLogger(SG_VAL_CLI_LOGGER_NAME)

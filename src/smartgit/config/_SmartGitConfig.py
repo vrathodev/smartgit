@@ -12,10 +12,10 @@ from pydantic import model_validator
 from pydantic.fields import Field
 from pydantic_settings import BaseSettings, JsonConfigSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 
+from smartgit.config._ConfigTypeMeta import ConfigType
 from smartgit.config._ProjectConfig import ProjectConfig
 from smartgit.config._Properties import Properties
 from smartgit.config._RepoConfig import RepoConfig
-from smartgit.config._ConfigTypeMeta import ConfigType
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
 
 LOGGER = getSmartLogger()
@@ -26,7 +26,7 @@ class SmartGitConfig(BaseSettings):
     SmartGitConfig -- Configuration master settings for SmartGit
     """
 
-    def __init__(self, inJSONConfigPath: Optional[Path] = None, inEnvConfigPath: Optional[Path] = None, **kwargs):
+    def __init__(self, inJSONConfigPath: Path, inEnvConfigPath: Optional[Path] = None, **kwargs):
         """
         Forward constructor to parameterize the Config path as model_config is initialized at compile time.
 
@@ -45,19 +45,20 @@ class SmartGitConfig(BaseSettings):
                 config = json.load(file)
             return config
 
-        # Load JSON configuration
-        config: dict[str, Any] = dict()
+        if isNoneOrEmpty(inJSONConfigPath):
+            raise ValueError('SmartGit Configuration (JSON) path can not be null or empty')
+        inJSONConfigPath = inJSONConfigPath.resolve().absolute()
 
-        if not isNoneOrEmpty(inJSONConfigPath):
-            config = load_config(inJSONConfigPath)
+        config: dict[str, Any] = load_config(inJSONConfigPath)
 
-        if not isNoneOrEmpty(inJSONConfigPath):
-            LOGGER.info(f'SmartGit configured from file: `{inJSONConfigPath}`')
+        LOGGER.info(f'SmartGit configured from file: `{inJSONConfigPath}`')
         if not isNoneOrEmpty(inEnvConfigPath):
             inEnvConfigPath = inEnvConfigPath.resolve().absolute()
             LOGGER.info(f'SmartGit configured from file: `{inEnvConfigPath}`')
 
         super().__init__(**{**config, **kwargs}, _env_file=inEnvConfigPath)
+        self.__mConfigJSONPath: Path = inJSONConfigPath
+        self.__mConfigDotEnvPath: Path = inEnvConfigPath
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
@@ -122,13 +123,13 @@ class SmartGitConfig(BaseSettings):
         """
         configPath: Path
         if inConfigType is ConfigType.JSON:
-            configPath = self.model_config.get('json_file')
+            configPath = self.__mConfigJSONPath
         elif inConfigType is ConfigType.DOTENV:
-            configPath = self.model_config.get('env_file')
+            configPath = self.__mConfigDotEnvPath
         else:
             raise Exception(f'Unknown configuration type: {inConfigType}')
 
-        return None if isNoneOrEmpty(configPath) else Path(configPath)
+        return None if isNoneOrEmpty(configPath) else configPath.resolve().absolute()
 
     def get_project_config(self, inProjectName: str) -> Optional[ProjectConfig]:
         """
