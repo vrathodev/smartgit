@@ -151,7 +151,7 @@ class SmartRepo(Repo):
         LOGGER.entrance()
 
         if self.properties.GIT_READONLY_MODE:
-            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
+            raise Exception(f'Can not create `{inBranchName}` branch, `{self.name}` is marked READ-ONLY')
 
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
@@ -257,7 +257,7 @@ class SmartRepo(Repo):
         LOGGER.entrance()
 
         if self.properties.GIT_READONLY_MODE:
-            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
+            raise Exception(f'Can not delete `{inBranchName}` branch, `{self.name}` is marked READ-ONLY')
 
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
@@ -278,6 +278,7 @@ class SmartRepo(Repo):
             LOGGER.warning(f'`{inBranchName=}` does not exist locally. Skipping local deletion.')
 
         if inFromRemote:
+            # TODO: Check if branch exists before deletion to NOT deal w/ Git's unformatted errors.
             yield GitCMD(
                 [
                     'git',
@@ -437,7 +438,7 @@ class SmartRepo(Repo):
             raise ValueError(f'{inRemoteName=} cannot be None or Empty')
         if isNoneOrEmpty(inBranchName):
             try:
-                LOGGER.info(f'{inBranchName=} is None or empty. Using {self.active_branch.name} for sync.')
+                LOGGER.info(f'Specified branch is None or empty. Using {self.active_branch.name} to sync.')
                 inBranchName = self.active_branch.name
             except TypeError as error:
                 LOGGER.exception('Detached HEAD state detected, Please specify a valid branch name to sync.')
@@ -446,8 +447,11 @@ class SmartRepo(Repo):
         inBranchName = inBranchName.strip()
         inRemoteName = inRemoteName.strip()
 
-        if inBranchName not in self.branches:
-            LOGGER.warning(f'`{inBranchName=}` does not exist locally, attempting to checkout from remote...')
+        switchBranch: bool = self.active_branch.name != inBranchName
+
+        if switchBranch:
+            if inBranchName not in self.branches:
+                LOGGER.warning(f'`{inBranchName=}` does not exist locally, attempting to checkout from remote...')
             yield GitCMD(
                 [
                     'git',
@@ -455,7 +459,6 @@ class SmartRepo(Repo):
                     inBranchName
                 ]
             )
-            return
 
         yield GitCMD(
             [
