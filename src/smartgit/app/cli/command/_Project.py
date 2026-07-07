@@ -4,6 +4,7 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import asyncio
+import functools
 from typing import Annotated, Optional
 
 from typer import Argument, Context, Option
@@ -18,8 +19,19 @@ from smartgit.utils import getSmartLogger, isNoneOrEmpty
 LOGGER = getSmartLogger(SG_VAL_CLI_LOGGER_NAME)
 
 
+def async_command(afunc):
+    """Decorator that accepts async function for typer sync command method"""
+
+    @functools.wraps(afunc)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(afunc(*args, **kwargs))
+
+    return wrapper
+
+
 @CLI_APP_PROJECT.command('fetch')
-def fetch(
+@async_command
+async def fetch(
     ctx: Context,
     project: Annotated[
         str,
@@ -43,17 +55,16 @@ def fetch(
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
-    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-    asyncio.run(
-        smartProject.afetch(
-            inRemote=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
-            inSkipTags=not fetch_tags
-        )
+    smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
+    await smartProject.afetch(
+        inRemote=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
+        inSkipTags=not fetch_tags
     )
 
 
 @CLI_APP_PROJECT.command('prune')
-def prune(
+@async_command
+async def prune(
     ctx: Context,
     project: Annotated[
         str,
@@ -77,17 +88,13 @@ def prune(
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
-    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-    asyncio.run(
-        smartProject.aprune(
-            inPruneBranches=prune_branches,
-            inPruneTags=prune_tags,
-        )
-    )
+    smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
+    await smartProject.aprune(inPruneBranches=prune_branches, inPruneTags=prune_tags)
 
 
 @CLI_APP_PROJECT.command('pull')
-def pull(
+@async_command
+async def pull(
     ctx: Context,
     project: Annotated[
         str,
@@ -111,19 +118,16 @@ def pull(
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
-    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-    asyncio.run(
-        smartProject.apull(
-            inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-            inRemoteName=str(remote).strip() if not isNoneOrEmpty(
-                remote
-            ) else smartProject.properties.GIT_DEFAULT_REMOTE,
-        )
+    smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
+    await smartProject.apull(
+        inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
+        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
     )
 
 
 @CLI_APP_PROJECT.command('init')
-def init(
+@async_command
+async def init(
     ctx: Context,
     project: Annotated[
         str,
@@ -140,11 +144,9 @@ def init(
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
-    smartProject: SmartProject = SmartProject.from_config(inProjectName=project, inConfig=config)
-    asyncio.run(
-        SmartProject.asmart_init(
-            inProjectName=smartProject.name,
-            inProjectConfig=smartProject.config,
-            inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-        )
+    smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
+    await SmartProject.asmart_init(
+        inProjectName=smartProject.name,
+        inProjectConfig=smartProject.config,
+        inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
     )

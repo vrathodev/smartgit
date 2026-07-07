@@ -159,11 +159,29 @@ class SmartProject:
             projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
             if isNoneOrEmpty(projectConfig):
                 raise Exception(f'{projectConfig} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+
+            return cls.smart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
         except Exception as e:
             LOGGER.exception(e)
             raise
 
-        return cls(inProjectName, projectConfig)
+    @classmethod
+    async def from_config_async(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+
+        inProjectName = inProjectName.strip()
+        try:
+            projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
+            if isNoneOrEmpty(projectConfig):
+                raise Exception(f'{projectConfig} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+
+            return await cls.asmart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
+        except Exception as e:
+            LOGGER.exception(e)
+            raise
 
     @classmethod
     def smart_init(
