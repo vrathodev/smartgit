@@ -11,7 +11,7 @@ from typer import Argument, Context, Option
 from smartgit.app.cli.apps import CLI_APP_REPO
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME
 from smartgit.config import ConfigType, SmartGitConfig
-from smartgit.config import RepoConfig
+from smartgit.config import Properties, RepoConfig
 from smartgit.core import SmartRepo
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
 
@@ -25,24 +25,16 @@ def resolve_repo(inRepoName: str, inConfig: SmartGitConfig) -> SmartRepo:
     """
     LOGGER.entrance()
 
-    repoBasePath: Path
-    repoName: str
-    repoConfig: RepoConfig
-
-    CWD = Path.cwd().resolve().absolute()
     if not isNoneOrEmpty(inRepoName):
-        repoName = inRepoName.strip()
-        repoConfig = inConfig.get_repo_config(repoName)
-        if isNoneOrEmpty(repoConfig):
-            raise Exception(f'Repo `{repoName}` not configured in `{str(inConfig.get_config_source(ConfigType.JSON))}`')
+        return SmartRepo.from_config(inRepoName, inConfig)
 
-        repoBasePath = repoConfig.properties.GIT_ROOT
-    else:
-        repoName = CWD.name
-        repoBasePath = CWD.parent
-        repoConfig = RepoConfig()
+    # Repo is NOT configured
+    CWD = Path.cwd().resolve().absolute()
+    repoName: str = CWD.name
+    repoConfig: RepoConfig = RepoConfig(properties=Properties(GIT_ROOT=CWD.parent))
 
-    return SmartRepo(path=repoBasePath / repoName, inRepoConfig=repoConfig)
+    # Current Repo operations are intended to be sync
+    return SmartRepo.smart_init(repoName, repoConfig)
 
 
 @CLI_APP_REPO.command('create-branch')
@@ -192,8 +184,3 @@ def init(
 
     config: SmartGitConfig = ctx.obj['config']
     repo: SmartRepo = resolve_repo(repo_name, config)
-    SmartRepo.smart_init(
-        inRepoName=repo.name,
-        inRepoConfig=repo.config,
-        inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-    )

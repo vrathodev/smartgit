@@ -452,8 +452,7 @@ class SmartRepo(Repo):
                 [
                     'git',
                     'switch',
-                    inBranchName,
-                    f'{inRemoteName}/{inBranchName}',
+                    inBranchName
                 ]
             )
             return
@@ -517,14 +516,11 @@ class SmartRepo(Repo):
             repoConfig: Optional[RepoConfig] = inConfig.get_repo_config(inRepoName)
             if isNoneOrEmpty(repoConfig):
                 raise Exception(f'{inRepoName} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+
+            return cls.smart_init(inRepoName=inRepoName, inRepoConfig=repoConfig)
         except Exception as e:
             LOGGER.exception(e)
             raise
-
-        return cls(
-            path=repoConfig.properties.GIT_ROOT / inRepoName,
-            inRepoConfig=repoConfig
-        )
 
     @classmethod
     def is_valid(cls, inRepoPath: Path) -> bool:
@@ -593,10 +589,11 @@ class SmartRepo(Repo):
             repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
             LOGGER.info(f'`{str(repoPath)}` already exists. Skipping clone...')
         except InvalidGitRepositoryError as e:
-            repo = cls.clone_from(
+            cls.clone_from(
                 url=f'{inRepoConfig.properties.GIT_REMOTE_BASE_URL}/{inRepoName}.git',
                 to_path=repoPath,
             )
+            repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
             LOGGER.info(f'Cloned `{str(repoPath)}` successfully')
 
         if not isNoneOrEmpty(inBranch):
