@@ -1,4 +1,4 @@
-ARG PY_VER=3.13
+ARG PY_VER=3.12
 ARG UV_VER=0.11.26
 
 FROM ghcr.io/astral-sh/uv:${UV_VER} AS uv_base
@@ -16,19 +16,19 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project --no-editable
+    uv sync --frozen --no-dev --no-editable --no-install-project
 
 COPY . .
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
-ENV PATH="/app/.venv/bin:$PATH"
-
-# TODO: Remove vim for production
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git vim \
+    && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system app && useradd --system --gid app app
+USER app
 
 ENTRYPOINT ["uv", "run", "smartgit"]
 CMD ["--help"]
