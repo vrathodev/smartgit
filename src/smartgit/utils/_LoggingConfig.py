@@ -36,7 +36,7 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
     """
 
     def __init__(self, inLogger: logging.Logger, inExtra: Optional[dict[str, Any]] = None):
-        super().__init__(inLogger, extra=inExtra or {}, merge_extra=True)
+        super().__init__(inLogger, extra=inExtra or {})
 
     def entrance(self, inFnName: Optional[str] = None, inLevel: int = logging.DEBUG):
         """
