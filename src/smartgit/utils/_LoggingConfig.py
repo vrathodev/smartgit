@@ -21,11 +21,13 @@ from smartgit.common.constants import (
     SG_VAL_LOG_DATETIME_FORMAT,
     SG_VAL_LOG_FORMAT,
     SG_VAL_LOG_LEVEL_DEFAULT,
+    SG_VAL_LOG_LEVEL_OFF,
     SG_VAL_LOG_PATH_DEFAULT,
 )
 from smartgit.utils._GenUtility import createDir, isNoneOrEmpty
 
 CWD = Path.cwd().resolve()
+logging.addLevelName(100, SG_VAL_LOG_LEVEL_OFF)
 
 
 class SmartLoggerAdapter(logging.LoggerAdapter):
@@ -37,6 +39,15 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
 
     def __init__(self, inLogger: logging.Logger, inExtra: Optional[dict[str, Any]] = None):
         super().__init__(inLogger, extra=inExtra or {}, merge_extra=True)
+
+    @property
+    def level(self) -> int:
+        return self.getEffectiveLevel()
+
+    @property
+    def level_name(self) -> str:
+        name: str = logging.getLevelName(self.level).upper()
+        return name if 'LEVEL' not in name else 'UNKNOWN'
 
     def entrance(self, inFnName: Optional[str] = None, inLevel: int = logging.DEBUG):
         """
@@ -139,29 +150,38 @@ def getSmartLogger(inLoggerName: str = None) -> SmartLoggerAdapter:
 
 
 @functools.lru_cache(maxsize=1)
-def configSmartLogger(inLoggerName: str = None) -> SmartLoggerAdapter:
+def configSmartLogger(inLoggerName: str = None, inLogLevel: int = logging.NOTSET) -> SmartLoggerAdapter:
     """
     Configures SmartGit logging from JSON config file if available, else uses default configuration.
     Allows overriding config via environment variable i.e. SMARTGIT_LOG_PATH, SMARTGIT_LOG_LEVEL, etc.
 
-    :param inLoggerName: Name of the logger instance to configure, defaults to 'smartgit'
+    :param inLoggerName:    Name of the logger instance to configure, defaults to 'smartgit'
+    :param inLogLevel:      Logging level of the logger instance to configure, defaults to logging.NOTSET
     """
     logConfigPath = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
     logConfigPath = os.path.abspath(
         logConfigPath if logConfigPath else str(SG_VAL_LOG_CONFIG_DEFAULT)
     )
+    logLevel: str = logging.getLevelName(inLogLevel).upper()
+    # 'Level %s' denotes the unrecognized level
+    logLevel = logLevel if 'LEVEL' not in logLevel else 'NOTSET'
 
     logger = getSmartLogger(inLoggerName)
     try:
         with open(logConfigPath) as file:
             dictConfig(json.load(file))
 
+        if logging.NOTSET < inLogLevel:
+            logger.setLevel(logLevel)
         logger.info(f'Logging configured from file: `{logConfigPath}`')
     except Exception as e:
         configLogging(
             inLevel=os.getenv(SG_KEY_LOG_LEVEL),
             inLogFilePath=os.getenv(SG_KEY_LOG_PATH)
         )
+
+        if logging.NOTSET < inLogLevel:
+            logger.setLevel(logLevel)
         logger.warning(f'Failed to load logging configuration from {logConfigPath}: {e}')
     finally:
         return logger

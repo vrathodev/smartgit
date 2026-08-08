@@ -32,6 +32,7 @@ SG_VAL_LOG_CONFIG_DEFAULT: Path         = SG_VAL_BASE_DIR / SG_VAL_LOG_CONFIG_FI
 
 SG_KEY_LOG_LEVEL: str                   = 'SMARTGIT_LOG_LEVEL'
 SG_VAL_LOG_LEVEL_DEFAULT: str           = 'WARNING'
+SG_VAL_LOG_LEVEL_OFF: str               = 'OFF'
 SG_KEY_LOG_PATH: str                    = 'SMARTGIT_LOG_PATH'
 SG_VAL_LOG_PATH_DEFAULT: Path           = SG_VAL_BASE_DIR / 'logs' / f'{SG_VAL_APP_NAME}.log'
 
