@@ -85,32 +85,17 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
 
     def header(self, inMessage: str, inLineLength: int = 100):
         """Prints a formatted header with the given message centered within a line of specified length."""
-        inMessage = inMessage.strip()
-        messageLen = len(inMessage)
-        firstLen = (inLineLength - messageLen - 2) // 2
-        secLen = inLineLength - messageLen - 2 - firstLen
-
-        self.info('%s', '=' * inLineLength, stacklevel=2)
-        self.info('%s %s %s', '=' * firstLen, inMessage.upper(), '=' * secLen, stacklevel=2)
-        self.info('%s', '=' * inLineLength, stacklevel=2)
+        self.info('%s', '=' * inLineLength)
+        self.info('%s', f' {inMessage.strip()} '.center(inLineLength, '='))
+        self.info('%s', '=' * inLineLength)
 
     def footer(self, inMessage: str, inLineLength: int = 100):
         """Prints a formatted footer with the given message centered within a line of specified length."""
-        inMessage = inMessage.strip()
-        messageLen = len(inMessage)
-        firstLen = (inLineLength - messageLen - 2) // 2
-        secLen = inLineLength - messageLen - 2 - firstLen
-
-        self.info('%s %s %s', '=' * firstLen, inMessage, '=' * secLen, stacklevel=2)
+        self.info('%s', f' {inMessage.strip()} '.center(inLineLength, '='))
 
     def highlight(self, inMessage: str, inLineLength: int = 100):
         """Prints a highlighted message with the given text centered within a line of specified length."""
-        inMessage = inMessage.strip()
-        messageLen = len(inMessage)
-        firstLen = (inLineLength - messageLen - 2) // 2
-        secLen = inLineLength - messageLen - 2 - firstLen
-
-        self.info('%s %s %s', '+' * firstLen, inMessage, '+' * secLen, stacklevel=2)
+        self.info('%s', f' {inMessage.strip()} '.center(inLineLength, '+'))
 
     @classmethod
     def logEntrance(cls, inLogger=None):
@@ -166,25 +151,27 @@ def configSmartLogger(inLoggerName: str = None, inLogLevel: int = logging.NOTSET
     # 'Level %s' denotes the unrecognized level
     logLevel = logLevel if 'LEVEL' not in logLevel else 'NOTSET'
 
+    configLoaded: bool = False
     logger = getSmartLogger(inLoggerName)
     try:
         with open(logConfigPath) as file:
             dictConfig(json.load(file))
 
-        if logging.NOTSET < inLogLevel:
-            logger.setLevel(logLevel)
-        logger.info(f'Logging configured from file: `{logConfigPath}`')
+        configLoaded = True
     except Exception as e:
         configLogging(
             inLevel=os.getenv(SG_KEY_LOG_LEVEL),
             inLogFilePath=os.getenv(SG_KEY_LOG_PATH)
         )
 
-        if logging.NOTSET < inLogLevel:
-            logger.setLevel(logLevel)
+    if logging.NOTSET < inLogLevel:
+        logger.setLevel(logLevel)
+    if configLoaded:
+        logger.info(f'Logging configured from file: `{logConfigPath}`')
+    else:
         logger.warning(f'Failed to load logging configuration from {logConfigPath}: {e}')
-    finally:
-        return logger
+
+    return logger
 
 
 def configLogging(
