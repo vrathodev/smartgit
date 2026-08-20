@@ -145,15 +145,6 @@ class SmartProject:
 
     @classmethod
     def from_config(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
-        """
-        Initializes a SmartProject from the configuration for the given project name
-
-        :param inProjectName:   Name of the repository
-        :param inConfig:        SmartGit Master Configuration instance
-        :returns: The initialized SmartProject instance
-        :raises NoneOrEmptyValueError
-        :raises InvalidConfigError
-        """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inProjectName):
@@ -170,6 +161,15 @@ class SmartProject:
 
     @classmethod
     async def from_config_async(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
+        """
+        Initializes a SmartProject from the configuration for the given project name
+
+        :param inProjectName:   Name of the repository
+        :param inConfig:        SmartGit Master Configuration instance
+        :returns: The initialized SmartProject instance
+        :raises NoneOrEmptyValueError
+        :raises InvalidConfigError
+        """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inProjectName):
