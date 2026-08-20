@@ -9,11 +9,14 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from git.exc import GitError
+from pydantic import ValidationError
 from typer import Context, Option
 
 from smartgit.app.cli.apps import CLI_APP
 from smartgit.app.cli.command import _Config, _Project, _Repo
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME, SG_VAL_CORE_LOGGER_NAME, SG_VAL_LOG_LEVEL_OFF
+from smartgit.common.errors import SmartGitError, SmartGitInternalError
 from smartgit.config import SmartGitConfigLoader
 from smartgit.utils import configSmartLogger, getSmartLogger
 
@@ -33,7 +36,7 @@ def main_callback(
     ] = 0,
     quiet: Annotated[
         bool,
-        Option('--quiet', '-q', help='Quiet mode. Suppresses all output except for errors.')
+        Option('--quiet', '-q/-nq', help='Quiet mode. Suppresses all output except for errors.')
     ] = False
 ):
     """
@@ -50,7 +53,7 @@ def main_callback(
     if quiet:
         log_level_quiet: int = logging.getLevelName(SG_VAL_LOG_LEVEL_OFF)
         if 'LEVEL' in str(log_level_quiet).upper():
-            raise Exception(f'Unexpected error: logging.{SG_VAL_LOG_LEVEL_OFF} is expected but not defined')
+            raise SmartGitInternalError(f'Unexpected error: logging.{SG_VAL_LOG_LEVEL_OFF} is expected but not defined')
         verbosity_level = log_level_quiet
 
     LOGGER = configSmartLogger(SG_VAL_CLI_LOGGER_NAME, verbosity_level)
@@ -62,22 +65,33 @@ def main_callback(
         LOGGER.debug('Invoked with Resilient Parsing mode ON, skipping...')
         return
 
-    try:
-        ctx.ensure_object(dict)
-        ctx.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=config_path)
-    except Exception as error:
-        LOGGER.exception(error)
-        typer.echo(f'Error: {error}', err=True)
-        raise typer.Exit(code=1) from error
+    ctx.ensure_object(dict)
+    ctx.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=config_path)
 
 
 def main() -> None:
     """
     SmartGit CLI entrypoint
     """
+    LOGGER = getSmartLogger(SG_VAL_CLI_LOGGER_NAME)
     try:
         asyncio.run(CLI_APP())
-    except Exception as error:
-        getSmartLogger(SG_VAL_CLI_LOGGER_NAME).exception(error)
+    except SmartGitInternalError as error:
+        LOGGER.debug(error, exc_info=True, stack_info=True)
+        typer.echo(error.display_message, err=True)
+    except SmartGitError as error:
+        LOGGER.debug(error, exc_info=True, stack_info=True)
         typer.echo(f'Error: {error}', err=True)
-        raise typer.Exit(code=1) from error
+    except ValidationError as error:
+        LOGGER.debug(error, exc_info=True, stack_info=True)
+        typer.echo(f'Error: {error}', err=True)
+    except GitError as error:
+        LOGGER.debug(error, exc_info=True, stack_info=True)
+        typer.echo(f'Error: {error}', err=True)
+    except Exception as error:
+        LOGGER.debug(error, exc_info=True, stack_info=True)
+        typer.echo(
+            f'Unexpected Error: {error}, '
+            f'Please report this issue to the SmartGit team',
+            err=True
+        )

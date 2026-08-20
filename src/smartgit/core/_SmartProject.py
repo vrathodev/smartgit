@@ -7,6 +7,7 @@ import asyncio
 from typing import *
 
 from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
+from smartgit.common.errors import InvalidConfigError, NoneOrEmptyValueError
 from smartgit.config import ConfigType
 from smartgit.config import ProjectConfig, SmartGitConfig
 from smartgit.core._SmartRepo import SmartRepo
@@ -30,11 +31,13 @@ class SmartProject:
     ):
         """
         Initializes the SmartProject with the ProjectConfig
+
+        :raises NoneOrEmptyValueError
         """
         if isNoneOrEmpty(inProjectName):
-            raise ValueError(f'{inProjectName=} can not be None or empty')
+            raise NoneOrEmptyValueError('ProjectName')
         if isNoneOrEmpty(inProjectConfig):
-            raise ValueError(f'{inProjectConfig=} can not be None or empty')
+            raise NoneOrEmptyValueError('ProjectConfig')
 
         inProjectName = inProjectName.strip()
         self.__mProjectName: str = inProjectName
@@ -142,46 +145,44 @@ class SmartProject:
 
     @classmethod
     def from_config(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inProjectName):
+            raise NoneOrEmptyValueError('ProjectName')
+
+        inProjectName = inProjectName.strip()
+        projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
+        if isNoneOrEmpty(projectConfig):
+            raise InvalidConfigError(
+                f'Project {inProjectName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
+            )
+
+        return cls.smart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
+
+    @classmethod
+    async def from_config_async(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
         """
         Initializes a SmartProject from the configuration for the given project name
 
         :param inProjectName:   Name of the repository
         :param inConfig:        SmartGit Master Configuration instance
         :returns: The initialized SmartProject instance
+        :raises NoneOrEmptyValueError
+        :raises InvalidConfigError
         """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inProjectName):
-            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+            raise NoneOrEmptyValueError('ProjectName')
 
         inProjectName = inProjectName.strip()
-        try:
-            projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
-            if isNoneOrEmpty(projectConfig):
-                raise Exception(f'{projectConfig} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+        projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
+        if isNoneOrEmpty(projectConfig):
+            raise InvalidConfigError(
+                f'Project {inProjectName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
+            )
 
-            return cls.smart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
-        except Exception as e:
-            LOGGER.exception(e)
-            raise
-
-    @classmethod
-    async def from_config_async(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
-        LOGGER.entrance()
-
-        if isNoneOrEmpty(inProjectName):
-            raise ValueError(f'{inProjectName=} cannot be None or Empty')
-
-        inProjectName = inProjectName.strip()
-        try:
-            projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
-            if isNoneOrEmpty(projectConfig):
-                raise Exception(f'{projectConfig} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
-
-            return await cls.asmart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
-        except Exception as e:
-            LOGGER.exception(e)
-            raise
+        return await cls.asmart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
 
     @classmethod
     def smart_init(
@@ -201,14 +202,14 @@ class SmartProject:
         :param inProjectConfig:     Configuration of the Project
         :param inBranch:            Branch to check out (optional)
                                     Defaults to remote and local HEAD, for new and existing repositories respectively
-        :raises Exception: If clone operation fails
+        :raises NoneOrEmptyValueError
         """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inProjectName):
-            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+            raise NoneOrEmptyValueError('ProjectName')
         if isNoneOrEmpty(inProjectConfig):
-            raise ValueError(f'{inProjectConfig=} cannot be None or Empty')
+            raise NoneOrEmptyValueError('ProjectConfig')
 
         inProjectName = inProjectName.strip()
 
@@ -227,9 +228,9 @@ class SmartProject:
         LOGGER.entrance()
 
         if isNoneOrEmpty(inProjectName):
-            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+            raise NoneOrEmptyValueError('ProjectName')
         if isNoneOrEmpty(inProjectConfig):
-            raise ValueError(f'{inProjectConfig=} cannot be None or Empty')
+            raise NoneOrEmptyValueError('ProjectConfig')
 
         inProjectName = inProjectName.strip()
         await asyncio.gather(

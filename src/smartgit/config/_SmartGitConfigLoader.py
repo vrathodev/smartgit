@@ -6,11 +6,10 @@
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic_core import ValidationError
-
 from smartgit.common.constants import (
     SG_VAL_DOTENV_FILE_DEFAULT,
 )
+from smartgit.common.errors import InvalidConfigError, InvalidValueError
 from smartgit.config._ConfigTypeMeta import ConfigSource, ConfigSourceType, ConfigType
 from smartgit.config._SmartGitConfig import SmartGitConfig
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
@@ -42,7 +41,8 @@ class SmartGitConfigLoader:
         inDotEnvConfigSources: Optional[List[ConfigSource]] = None
     ):
         """
-        To set up the configurations sources in priority order
+        Sets up the configurations sources in priority order
+
         :param inJSONConfigSources:     List of JSON config sources in priority order
         :param inDotEnvConfigSources:   List of dotenv config sources in priority order
         """
@@ -65,19 +65,15 @@ class SmartGitConfigLoader:
         # Validate dotenv config path
         if not isNoneOrEmpty(inDotEnvConfigPath):
             currDotEnvConfigPath = Path(inDotEnvConfigPath).resolve().absolute()
-            try:
-                self.__validate_dotenv_config_path(currDotEnvConfigPath, ignoreError=False)
-            except ValueError as error:
-                LOGGER.exception(error)
-                raise error
+            self.__validate_dotenv_config_path(currDotEnvConfigPath, ignoreError=False)
         else:
             for source in self.__mDotEnvSources:
                 try:
                     self.__validate_dotenv_config_path(source.source_path, ignoreError=False)
                     currDotEnvConfigPath = source.source_path
                     break
-                except ValueError as error:
-                    LOGGER.debug(error, exc_info=True, stack_info=True)
+                except InvalidConfigError as err:
+                    LOGGER.debug(err, exc_info=True, stack_info=True)
 
         if isNoneOrEmpty(currDotEnvConfigPath):
             LOGGER.warning('Failed to load any of the default dotenv configuration sources, skipping')
@@ -94,30 +90,38 @@ class SmartGitConfigLoader:
                     inDotEnvConfigPath=currDotEnvConfigPath
                 )
                 break
-            except ValidationError as error:
-                LOGGER.debug(error, exc_info=True, stack_info=True)
-            except ValueError as error:
+            except InvalidValueError as error:
                 LOGGER.debug(error, exc_info=True, stack_info=True)
 
         if isNoneOrEmpty(config):
-            LOGGER.warning('Failed to load any of the default JSON configuration sources, skipping')
+            raise InvalidConfigError(
+                'No configurations loaded, failed to load any of the default JSON configuration sources'
+            )
 
         return config
 
     def __validate_dotenv_config_path(self, inConfigPath: Path, ignoreError: bool = False) -> bool:
+        """
+        Validates the Configuration (dotenv) file
+
+        :param inConfigPath:    Path to the configuration file
+        :param ignoreError:     Raise an error on validation failure if disabled else return False
+        :returns: True if the config file is valid else False
+        :raises InvalidConfigError: On validation failure if ignoreError is False
+        """
         inConfigPath = inConfigPath.resolve().absolute()
         result: bool = (
-            inConfigPath.exists() and
-            inConfigPath.is_file() and
-            inConfigPath.name == SG_VAL_DOTENV_FILE_DEFAULT
+                inConfigPath.exists() and
+                inConfigPath.is_file() and
+                inConfigPath.name == SG_VAL_DOTENV_FILE_DEFAULT
         )
 
         if not result:
             if ignoreError:
                 return result
 
-            raise ValueError(
-                f'Invalid config: `{inConfigPath}`\n'
+            raise InvalidConfigError(
+                f'Invalid config file: `{inConfigPath}`\n'
                 f'Must be a file named `{SG_VAL_DOTENV_FILE_DEFAULT}` w/ valid path.'
             )
 
