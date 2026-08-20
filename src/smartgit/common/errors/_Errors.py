@@ -26,11 +26,21 @@ class SmartGitInternalError(SmartGitError):
     """
 
     def __init__(self, inMessage: str, *args: Any) -> None:
+        self.__mDisplayMessage = 'Internal Error: Please report this issue to the SmartGit team'
         super().__init__(
             inMessage.strip() if not isNoneOrEmptyStr(inMessage)
-            else 'Internal Error: Please report this issue to the SmartGit team',
+            else self.__mDisplayMessage,
             *args
         )
+
+    @property
+    def display_message(self) -> str:
+        return self.__mDisplayMessage
+
+
+class InvalidEnumError(SmartGitInternalError):
+    def __init__(self, inEnumRef: Enum) -> None:
+        super().__init__(f'Invalid {inEnumRef.__class__.__name__}: {inEnumRef.name}')
 
 
 class InvalidValueError(SmartGitError, ValueError):
@@ -44,11 +54,6 @@ class InvalidConfigError(InvalidValueError):
     Represents a configuration error
     Raised for missing or invalid config
     """
-
-
-class InvalidEnumError(InvalidValueError):
-    def __init__(self, inEnumRef: Enum) -> None:
-        super().__init__(f'Invalid {inEnumRef.__class__.__name__}: {inEnumRef.name}')
 
 
 class NoneOrEmptyValueError(InvalidValueError):
