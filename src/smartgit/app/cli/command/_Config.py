@@ -10,6 +10,7 @@ from typer import Context, Option, echo
 
 from smartgit.app.cli.apps import CLI_APP_CONFIG
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME
+from smartgit.common.errors import SmartGitInternalError
 from smartgit.config import ConfigType, SmartGitConfig
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
 
@@ -41,8 +42,8 @@ def show_config(
     dotenv_path: Optional[Path] = config.get_config_source(ConfigType.DOTENV)
 
     if isNoneOrEmpty(json_path):
-        # Should never happen
-        raise Exception('Unexpected error: Configuration (JSON) could not be loaded')
+        # Global callback (main_callback) should've loaded the config or failed fast.
+        raise SmartGitInternalError('Unexpected error: Configuration (JSON) is not loaded.')
 
     if show_path:
         if isNoneOrEmpty(dotenv_path):

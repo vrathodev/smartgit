@@ -40,14 +40,14 @@ async def fetch(
     remote: Annotated[
         Optional[str],
         Option(
-            '--remote',
+            '--remote', '-r',
             help='Name of the remote'
         )
     ] = None,
     fetch_tags: Annotated[
         bool,
         Option(
-            '--tags',
+            '--tags/--no-tags', '-t/-nt',
             help='Fetches the tags'
         )
     ] = False,
@@ -70,21 +70,29 @@ async def prune(
         str,
         Argument(help='Name of the project')
     ],
+    remote: Annotated[
+        Optional[str],
+        Option(
+            '--remote', '-r',
+            help='Name of the remote'
+        )
+    ] = None,
     prune_branches: Annotated[
         bool,
         Option(
-            '--branches',
+            '--branches/--no-branches', '-b/-nb',
             help='Prunes remote-tracking branches'
         )
     ] = False,
     prune_tags: Annotated[
         bool,
         Option(
-            '--tags',
+            '--tags/--no-tags', '-t/-nt',
             help='Prunes fetched tags'
         )
     ] = False,
 ):
+    # TODO: Fix remote usage
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
@@ -103,14 +111,14 @@ async def pull(
     branch: Annotated[
         Optional[str],
         Option(
-            '--branch',
+            '--branch', '-b',
             help='Name of the branch. Defaults to the active branch when omitted'
         )
     ] = None,
     remote: Annotated[
         Optional[str],
         Option(
-            '--remote',
+            '--remote', '-r',
             help='Name of the remote'
         )
     ] = None,
@@ -136,7 +144,7 @@ async def init(
     branch: Annotated[
         Optional[str],
         Option(
-            '--branch',
+            '--branch', '-b',
             help='Name of the branch to switch to after initialization'
         )
     ] = None,
