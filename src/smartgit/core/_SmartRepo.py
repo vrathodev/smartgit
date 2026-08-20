@@ -14,6 +14,7 @@ from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
 from smartgit.common.types import SmartPath
+from smartgit.config import ConfigType
 from smartgit.config import Properties, RepoConfig, SmartGitConfig
 from smartgit.utils import *
 
@@ -150,7 +151,7 @@ class SmartRepo(Repo):
         LOGGER.entrance()
 
         if self.properties.GIT_READONLY_MODE:
-            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
+            raise Exception(f'Can not create `{inBranchName}` branch, `{self.name}` is marked READ-ONLY')
 
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
@@ -256,7 +257,7 @@ class SmartRepo(Repo):
         LOGGER.entrance()
 
         if self.properties.GIT_READONLY_MODE:
-            raise Exception(f'Unable to complete the operation, `{self.name}` is marked READ-ONLY')
+            raise Exception(f'Can not delete `{inBranchName}` branch, `{self.name}` is marked READ-ONLY')
 
         if isNoneOrEmpty(inBranchName):
             raise ValueError(f'{inBranchName=} cannot be None or Empty')
@@ -277,6 +278,7 @@ class SmartRepo(Repo):
             LOGGER.warning(f'`{inBranchName=}` does not exist locally. Skipping local deletion.')
 
         if inFromRemote:
+            # TODO: Check if branch exists before deletion to NOT deal w/ Git's unformatted errors.
             yield GitCMD(
                 [
                     'git',
@@ -436,7 +438,7 @@ class SmartRepo(Repo):
             raise ValueError(f'{inRemoteName=} cannot be None or Empty')
         if isNoneOrEmpty(inBranchName):
             try:
-                LOGGER.info(f'{inBranchName=} is None or empty. Using {self.active_branch.name} for sync.')
+                LOGGER.info(f'Specified branch is None or empty. Using {self.active_branch.name} to sync.')
                 inBranchName = self.active_branch.name
             except TypeError as error:
                 LOGGER.exception('Detached HEAD state detected, Please specify a valid branch name to sync.')
@@ -445,17 +447,18 @@ class SmartRepo(Repo):
         inBranchName = inBranchName.strip()
         inRemoteName = inRemoteName.strip()
 
-        if inBranchName not in self.branches:
-            LOGGER.warning(f'`{inBranchName=}` does not exist locally, attempting to checkout from remote...')
+        switchBranch: bool = self.active_branch.name != inBranchName
+
+        if switchBranch:
+            if inBranchName not in self.branches:
+                LOGGER.warning(f'`{inBranchName=}` does not exist locally, attempting to checkout from remote...')
             yield GitCMD(
                 [
                     'git',
                     'switch',
-                    inBranchName,
-                    f'{inRemoteName}/{inBranchName}',
+                    inBranchName
                 ]
             )
-            return
 
         yield GitCMD(
             [
@@ -515,15 +518,12 @@ class SmartRepo(Repo):
         try:
             repoConfig: Optional[RepoConfig] = inConfig.get_repo_config(inRepoName)
             if isNoneOrEmpty(repoConfig):
-                raise Exception(f'{inRepoName} is not configured in {inConfig.get_master_config_source()}')
+                raise Exception(f'{inRepoName} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+
+            return cls.smart_init(inRepoName=inRepoName, inRepoConfig=repoConfig)
         except Exception as e:
             LOGGER.exception(e)
             raise
-
-        return cls(
-            path=repoConfig.properties.GIT_ROOT / inRepoName,
-            inRepoConfig=repoConfig
-        )
 
     @classmethod
     def is_valid(cls, inRepoPath: Path) -> bool:
@@ -590,13 +590,14 @@ class SmartRepo(Repo):
 
         try:
             repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
-            LOGGER.info(f'`{repoPath=}` already exists. Skipping clone...')
+            LOGGER.info(f'`{str(repoPath)}` already exists. Skipping clone...')
         except InvalidGitRepositoryError as e:
-            repo = cls.clone_from(
+            cls.clone_from(
                 url=f'{inRepoConfig.properties.GIT_REMOTE_BASE_URL}/{inRepoName}.git',
                 to_path=repoPath,
             )
-            LOGGER.info(f'Cloned `{repoPath=}` successfully')
+            repo = cls(path=repoPath, inRepoConfig=inRepoConfig)
+            LOGGER.info(f'Cloned `{str(repoPath)}` successfully')
 
         if not isNoneOrEmpty(inBranch):
             repo.execute(['git', 'switch', str(inBranch).strip()])

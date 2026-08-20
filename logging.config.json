@@ -37,6 +37,13 @@
             ],
             "propagate": false
         },
+        "smartgit-cli": {
+            "level": "DEBUG",
+            "handlers": [
+                "file"
+            ],
+            "propagate": false
+        },
         "git": {
             "level": "ERROR",
             "handlers": [

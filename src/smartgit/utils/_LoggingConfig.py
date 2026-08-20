@@ -16,16 +16,18 @@ from smartgit.common.constants import (
     SG_KEY_LOG_CONFIG_PATH,
     SG_KEY_LOG_LEVEL,
     SG_KEY_LOG_PATH,
-    SG_VAL_LOGGER_NAME,
+    SG_VAL_CORE_LOGGER_NAME,
     SG_VAL_LOG_CONFIG_DEFAULT,
     SG_VAL_LOG_DATETIME_FORMAT,
     SG_VAL_LOG_FORMAT,
     SG_VAL_LOG_LEVEL_DEFAULT,
+    SG_VAL_LOG_LEVEL_OFF,
     SG_VAL_LOG_PATH_DEFAULT,
 )
 from smartgit.utils._GenUtility import createDir, isNoneOrEmpty
 
 CWD = Path.cwd().resolve()
+logging.addLevelName(100, SG_VAL_LOG_LEVEL_OFF)
 
 
 class SmartLoggerAdapter(logging.LoggerAdapter):
@@ -37,6 +39,15 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
 
     def __init__(self, inLogger: logging.Logger, inExtra: Optional[dict[str, Any]] = None):
         super().__init__(inLogger, extra=inExtra or {}, merge_extra=True)
+
+    @property
+    def level(self) -> int:
+        return self.getEffectiveLevel()
+
+    @property
+    def level_name(self) -> str:
+        name: str = logging.getLevelName(self.level).upper()
+        return name if 'LEVEL' not in name else 'UNKNOWN'
 
     def entrance(self, inFnName: Optional[str] = None, inLevel: int = logging.DEBUG):
         """
@@ -74,32 +85,17 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
 
     def header(self, inMessage: str, inLineLength: int = 100):
         """Prints a formatted header with the given message centered within a line of specified length."""
-        inMessage = inMessage.strip()
-        messageLen = len(inMessage)
-        firstLen = (inLineLength - messageLen - 2) // 2
-        secLen = inLineLength - messageLen - 2 - firstLen
-
-        self.info('%s', '=' * inLineLength, stacklevel=2)
-        self.info('%s %s %s', '=' * firstLen, inMessage.upper(), '=' * secLen, stacklevel=2)
-        self.info('%s', '=' * inLineLength, stacklevel=2)
+        self.info('%s', '=' * inLineLength)
+        self.info('%s', f' {inMessage.strip()} '.center(inLineLength, '='))
+        self.info('%s', '=' * inLineLength)
 
     def footer(self, inMessage: str, inLineLength: int = 100):
         """Prints a formatted footer with the given message centered within a line of specified length."""
-        inMessage = inMessage.strip()
-        messageLen = len(inMessage)
-        firstLen = (inLineLength - messageLen - 2) // 2
-        secLen = inLineLength - messageLen - 2 - firstLen
-
-        self.info('%s %s %s', '=' * firstLen, inMessage, '=' * secLen, stacklevel=2)
+        self.info('%s', f' {inMessage.strip()} '.center(inLineLength, '='))
 
     def highlight(self, inMessage: str, inLineLength: int = 100):
         """Prints a highlighted message with the given text centered within a line of specified length."""
-        inMessage = inMessage.strip()
-        messageLen = len(inMessage)
-        firstLen = (inLineLength - messageLen - 2) // 2
-        secLen = inLineLength - messageLen - 2 - firstLen
-
-        self.info('%s %s %s', '+' * firstLen, inMessage, '+' * secLen, stacklevel=2)
+        self.info('%s', f' {inMessage.strip()} '.center(inLineLength, '+'))
 
     @classmethod
     def logEntrance(cls, inLogger=None):
@@ -123,41 +119,59 @@ class SmartLoggerAdapter(logging.LoggerAdapter):
         return decorator
 
 
-@functools.lru_cache(maxsize=1)
-def getSmartLogger() -> SmartLoggerAdapter:
+@functools.lru_cache(maxsize=2)
+def getSmartLogger(inLoggerName: str = None) -> SmartLoggerAdapter:
     """
     Returns the shared SmartGit logger adapter without configuring logging.
-
     Logging configuration remains the responsibility of explicit bootstrap code.
+
+    :param inLoggerName: Name of the logger instance to configure, defaults to 'smartgit'
     """
-    return SmartLoggerAdapter(logging.getLogger(SG_VAL_LOGGER_NAME))
+    if isNoneOrEmpty(inLoggerName):
+        inLoggerName = SG_VAL_CORE_LOGGER_NAME
+    inLoggerName = inLoggerName.strip()
+
+    return SmartLoggerAdapter(logging.getLogger(inLoggerName))
 
 
 @functools.lru_cache(maxsize=1)
-def configSmartLogger() -> SmartLoggerAdapter:
+def configSmartLogger(inLoggerName: str = None, inLogLevel: int = logging.NOTSET) -> SmartLoggerAdapter:
     """
     Configures SmartGit logging from JSON config file if available, else uses default configuration.
     Allows overriding config via environment variable i.e. SMARTGIT_LOG_PATH, SMARTGIT_LOG_LEVEL, etc.
-    """
-    log_config_path = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
-    log_config_path = os.path.abspath(
-        log_config_path if log_config_path else str(SG_VAL_LOG_CONFIG_DEFAULT)
-    )
 
-    logger = getSmartLogger()
+    :param inLoggerName:    Name of the logger instance to configure, defaults to 'smartgit'
+    :param inLogLevel:      Logging level of the logger instance to configure, defaults to logging.NOTSET
+    """
+    logConfigPath = os.environ.get(SG_KEY_LOG_CONFIG_PATH, '').strip()
+    logConfigPath = os.path.abspath(
+        logConfigPath if logConfigPath else str(SG_VAL_LOG_CONFIG_DEFAULT)
+    )
+    logLevel: str = logging.getLevelName(inLogLevel).upper()
+    # 'Level %s' denotes the unrecognized level
+    logLevel = logLevel if 'LEVEL' not in logLevel else 'NOTSET'
+
+    configLoaded: bool = False
+    logger = getSmartLogger(inLoggerName)
     try:
-        with open(log_config_path) as file:
+        with open(logConfigPath) as file:
             dictConfig(json.load(file))
 
-        logger.info(f'Logging configured from file: `{log_config_path}`')
+        configLoaded = True
     except Exception as e:
         configLogging(
             inLevel=os.getenv(SG_KEY_LOG_LEVEL),
             inLogFilePath=os.getenv(SG_KEY_LOG_PATH)
         )
-        logger.warning(f'Failed to load logging configuration from {log_config_path}: {e}')
-    finally:
-        return logger
+
+    if logging.NOTSET < inLogLevel:
+        logger.setLevel(logLevel)
+    if configLoaded:
+        logger.info(f'Logging configured from file: `{logConfigPath}`')
+    else:
+        logger.warning(f'Failed to load logging configuration from {logConfigPath}: {e}')
+
+    return logger
 
 
 def configLogging(

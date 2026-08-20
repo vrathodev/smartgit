@@ -9,7 +9,11 @@ dependencies = [
     "gitpython>=3.1.45",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
+    "typer[all]>=0.26.4",
 ]
+
+[project.scripts]
+smartgit = "smartgit.app.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/vrathodev/smartgit"
