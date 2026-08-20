@@ -15,6 +15,7 @@ from smartgit.common.constants import (
     SG_VAL_CONFIG_FILE_DEFAULT,
     SG_VAL_DOTENV_FILE_DEFAULT,
 )
+from smartgit.common.errors import InvalidConfigError, InvalidEnumError
 
 
 class ConfigSourceType(Enum):
@@ -50,20 +51,22 @@ class ConfigSource:
     def source_path(self) -> Path:
         """
         Configuration source path w/ base path and name
-        :throws: ValueError if implicit source path is invalid
+
+        :raises InvalidConfigError
+        :raises InvalidEnumError
         """
         if self.source_type is ConfigSourceType.ENV:
-            env = SG_KEY_CONFIG_PATH if self.config_type is ConfigType.JSON else SG_KEY_DOTENV_PATH
+            env: str = SG_KEY_CONFIG_PATH if self.config_type is ConfigType.JSON else SG_KEY_DOTENV_PATH
             try:
                 return Path(os.environ[env].strip())
             except KeyError:
-                raise ValueError(f'Configuration source not set. env.{env} not found')
+                raise InvalidConfigError(f'Required Configuration source (env.{env}) not found. Please configure correctly.')
         elif self.source_type is ConfigSourceType.LOCAL:
             return Path.cwd().resolve().absolute() / self.source_name
         elif self.source_type is ConfigSourceType.GLOBAL:
             return SG_VAL_BASE_DIR / self.source_name
-
-        raise Exception(f'Unknown ConfigSourceType: {self.source_type}')
+        else:
+            raise InvalidEnumError(self.source_type)
 
     @property
     def source_name(self) -> str:

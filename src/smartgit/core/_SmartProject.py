@@ -163,7 +163,7 @@ class SmartProject:
         projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
         if isNoneOrEmpty(projectConfig):
             raise InvalidConfigError(
-                f'{inProjectName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
+                f'Project {inProjectName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
             )
 
         return cls.smart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
@@ -179,7 +179,7 @@ class SmartProject:
         projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
         if isNoneOrEmpty(projectConfig):
             raise InvalidConfigError(
-                f'{inProjectName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
+                f'Project {inProjectName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
             )
 
         return await cls.asmart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
