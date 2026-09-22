@@ -5,7 +5,6 @@
 
 import copy
 import json
-import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -13,12 +12,7 @@ from pydantic import model_validator
 from pydantic.fields import Field
 from pydantic_settings import BaseSettings, JsonConfigSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 
-from smartgit.common.constants import (
-    SG_KEY_CONFIG_PATH,
-    SG_KEY_DOTENV_PATH,
-    SG_VAL_CONFIG_PATH_DEFAULT,
-    SG_VAL_DOTENV_PATH_DEFAULT,
-)
+from smartgit.config._ConfigTypeMeta import ConfigType
 from smartgit.config._ProjectConfig import ProjectConfig
 from smartgit.config._Properties import Properties
 from smartgit.config._RepoConfig import RepoConfig
@@ -32,64 +26,39 @@ class SmartGitConfig(BaseSettings):
     SmartGitConfig -- Configuration master settings for SmartGit
     """
 
-    def __init__(self, inJSONConfigPath: Optional[Path] = None, inEnvConfigPath: Optional[Path] = None, **kwargs):
+    def __init__(self, inJSONConfigPath: Path, inEnvConfigPath: Optional[Path] = None, **kwargs):
         """
-        Forward constructor to parameterize the Config path
-        as model_config is initialized at compile time.
-        :param inJSONConfigPath:    The Configuration (config.json) file path
-        :param inEnvConfigPath:     The Environment Configuration (.env) file path
+        Forward constructor to parameterize the Config path as model_config is initialized at compile time.
+
+        :param inJSONConfigPath:    [Optional] The Configuration (config.json) file path
+        :param inEnvConfigPath:     [Optional] The Environment Configuration (.env) file path
         :param kwargs:              BaseSettings recognized Keyword-args
         """
 
-        def load_config(inConfig: Optional[Path]) -> Optional[dict[str, Any]]:
+        def load_config(inConfig: Path) -> dict[str, Any]:
             """Internal helper method to load config"""
-            if isNoneOrEmpty(inConfig):
-                LOGGER.debug(f'`{inConfig=}` is invalid/empty')
-                return None
             if not (inConfig.exists() and inConfig.is_file()):
-                LOGGER.debug(f'Configuration `{inConfig}` either does not exist or is not a file.')
-                return None
+                raise ValueError(f'Configuration `{inConfig}` either does not exist or is not a file.')
 
-            try:
-                config: dict[str, Any] = None
-                with inConfig.open(mode='r', encoding='utf-8') as file:
-                    config = json.load(file)
-                return config
-            except (json.JSONDecodeError, Exception) as e:
-                LOGGER.exception(f'Failed to load configuration from `{inConfig.resolve()}`: {e}')
-                return None
+            config: dict[str, Any] = None
+            with inConfig.open(mode='r', encoding='utf-8') as file:
+                config = json.load(file)
+            return config
 
-        # Load JSON configuration
-        configSource: Path = None
-        config: Optional[dict[str, Any]] = load_config(inJSONConfigPath)
-        if config is None:
-            LOGGER.debug(f'Proceeding to load the fallback configuration from env.{SG_KEY_CONFIG_PATH}...')
+        if isNoneOrEmpty(inJSONConfigPath):
+            raise ValueError('SmartGit Configuration (JSON) path can not be null or empty')
+        inJSONConfigPath = inJSONConfigPath.resolve().absolute()
 
-            fallbackConfigPath: Path = Path(os.getenv(SG_KEY_CONFIG_PATH, SG_VAL_CONFIG_PATH_DEFAULT)).resolve()
-            config = load_config(fallbackConfigPath)
-            if config is None:
-                LOGGER.warning('Proceeding with the empty configuration to fallback to the Config models defaults')
-                config = dict()
-            else:
-                configSource = fallbackConfigPath
-        else:
-            configSource = Path(inJSONConfigPath).resolve()
+        config: dict[str, Any] = load_config(inJSONConfigPath)
 
-        # Load Environment configuration
-        envConfigSource: Path = None
-        if isNoneOrEmpty(inEnvConfigPath):
-            envConfigSource = Path(os.getenv(SG_KEY_DOTENV_PATH, SG_VAL_DOTENV_PATH_DEFAULT)).resolve()
-            if not (envConfigSource.exists() and envConfigSource.is_file()):
-                LOGGER.warning(f'Failed to load environment configuration from `{inEnvConfigPath}`, skipping...')
-        else:
-            envConfigSource = Path(inEnvConfigPath).resolve()
+        LOGGER.info(f'SmartGit configured from file: `{inJSONConfigPath}`')
+        if not isNoneOrEmpty(inEnvConfigPath):
+            inEnvConfigPath = inEnvConfigPath.resolve().absolute()
+            LOGGER.info(f'SmartGit configured from file: `{inEnvConfigPath}`')
 
-        if not isNoneOrEmpty(configSource):
-            LOGGER.info(f'SmartGit configured from file: `{configSource}`')
-        if not isNoneOrEmpty(envConfigSource):
-            LOGGER.info(f'SmartGit configured from file: `{envConfigSource}`')
-
-        super().__init__(**{**config, **kwargs}, _env_file=envConfigSource)
+        super().__init__(**{**config, **kwargs}, _env_file=inEnvConfigPath)
+        self.__mConfigJSONPath: Path = inJSONConfigPath
+        self.__mConfigDotEnvPath: Path = inEnvConfigPath
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
@@ -145,16 +114,22 @@ class SmartGitConfig(BaseSettings):
         default_factory=Properties
     )
 
-    def get_master_config_source(self) -> Path:
+    def get_config_source(self, inConfigType: ConfigType) -> Optional[Path]:
         """
-        Retrieves the master configuration source (*.config.json)
-        :return: The master configuration source path
-        """
-        configPath: Optional[Path] = self.model_config.get('json_file')
-        # Should never happen
-        assert not isNoneOrEmpty(configPath)
+        Retrieves the configuration source
 
-        return configPath.resolve()
+        :param inConfigType: Type of configuration
+        :return: The absolute configuration source path
+        """
+        configPath: Path
+        if inConfigType is ConfigType.JSON:
+            configPath = self.__mConfigJSONPath
+        elif inConfigType is ConfigType.DOTENV:
+            configPath = self.__mConfigDotEnvPath
+        else:
+            raise Exception(f'Unknown configuration type: {inConfigType}')
+
+        return None if isNoneOrEmpty(configPath) else configPath.resolve().absolute()
 
     def get_project_config(self, inProjectName: str) -> Optional[ProjectConfig]:
         """

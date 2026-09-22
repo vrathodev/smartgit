@@ -7,6 +7,7 @@ import asyncio
 from typing import *
 
 from smartgit.common.constants import SG_VAL_REMOTE_NAME_DEFAULT
+from smartgit.config import ConfigType
 from smartgit.config import ProjectConfig, SmartGitConfig
 from smartgit.core._SmartRepo import SmartRepo
 from smartgit.utils import *
@@ -47,6 +48,18 @@ class SmartProject:
                     inRepoConfig=repoConfig
                 )
             )
+
+    @property
+    def config(self) -> ProjectConfig:
+        return self.__mProjectConfig
+
+    @property
+    def name(self) -> str:
+        return self.__mProjectName
+
+    @property
+    def properties(self):
+        return self.__mProjectConfig.properties
 
     @property
     def repositories(self) -> FrozenSet[SmartRepo]:
@@ -145,12 +158,30 @@ class SmartProject:
         try:
             projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
             if isNoneOrEmpty(projectConfig):
-                raise Exception(f'{projectConfig} is not configured in {inConfig.get_master_config_source()}')
+                raise Exception(f'{projectConfig} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+
+            return cls.smart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
         except Exception as e:
             LOGGER.exception(e)
             raise
 
-        return cls(inProjectName, projectConfig)
+    @classmethod
+    async def from_config_async(cls, inProjectName: str, inConfig: SmartGitConfig) -> Self:
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inProjectName):
+            raise ValueError(f'{inProjectName=} cannot be None or Empty')
+
+        inProjectName = inProjectName.strip()
+        try:
+            projectConfig: Optional[ProjectConfig] = inConfig.get_project_config(inProjectName)
+            if isNoneOrEmpty(projectConfig):
+                raise Exception(f'{projectConfig} is not configured in {inConfig.get_config_source(ConfigType.JSON)}')
+
+            return await cls.asmart_init(inProjectName=inProjectName, inProjectConfig=projectConfig)
+        except Exception as e:
+            LOGGER.exception(e)
+            raise
 
     @classmethod
     def smart_init(
