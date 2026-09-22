@@ -278,16 +278,19 @@ class SmartRepo(Repo):
             LOGGER.warning(f'`{inBranchName=}` does not exist locally. Skipping local deletion.')
 
         if inFromRemote:
-            # TODO: Check if branch exists before deletion to NOT deal w/ Git's unformatted errors.
-            yield GitCMD(
-                [
-                    'git',
-                    'push',
-                    inRemoteName,
-                    '--delete',
-                    inBranchName,
-                ]
-            )
+            if f'{inRemoteName}/{inBranchName}' in self.remote_branches:
+                yield GitCMD(
+                    [
+                        'git',
+                        'push',
+                        inRemoteName,
+                        '--delete',
+                        inBranchName,
+                    ]
+                )
+                LOGGER.info(f'`{inBranchName=}` deleted from remote {inRemoteName=}')
+            else:
+                LOGGER.warning(f'`{inBranchName=}` does not exist on remote {inRemoteName=}. Skipping remote deletion.')
 
     def delete_branch(
         self,
