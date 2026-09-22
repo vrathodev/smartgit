@@ -12,6 +12,7 @@ from pydantic import model_validator
 from pydantic.fields import Field
 from pydantic_settings import BaseSettings, JsonConfigSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 
+from smartgit.common.errors import InvalidConfigError, InvalidEnumError, NoneOrEmptyValueError, OperationError
 from smartgit.config._ConfigTypeMeta import ConfigType
 from smartgit.config._ProjectConfig import ProjectConfig
 from smartgit.config._Properties import Properties
@@ -33,12 +34,14 @@ class SmartGitConfig(BaseSettings):
         :param inJSONConfigPath:    [Optional] The Configuration (config.json) file path
         :param inEnvConfigPath:     [Optional] The Environment Configuration (.env) file path
         :param kwargs:              BaseSettings recognized Keyword-args
+        :raises InvalidConfigError
+        :raises NoneOrEmptyValueError
         """
 
         def load_config(inConfig: Path) -> dict[str, Any]:
             """Internal helper method to load config"""
             if not (inConfig.exists() and inConfig.is_file()):
-                raise ValueError(f'Configuration `{inConfig}` either does not exist or is not a file.')
+                raise InvalidConfigError(f'Configuration `{inConfig}` either does not exist or is not a file.')
 
             config: dict[str, Any] = None
             with inConfig.open(mode='r', encoding='utf-8') as file:
@@ -46,7 +49,7 @@ class SmartGitConfig(BaseSettings):
             return config
 
         if isNoneOrEmpty(inJSONConfigPath):
-            raise ValueError('SmartGit Configuration (JSON) path can not be null or empty')
+            raise NoneOrEmptyValueError('SmartGit Configuration (JSON) path')
         inJSONConfigPath = inJSONConfigPath.resolve().absolute()
 
         config: dict[str, Any] = load_config(inJSONConfigPath)
@@ -120,6 +123,7 @@ class SmartGitConfig(BaseSettings):
 
         :param inConfigType: Type of configuration
         :return: The absolute configuration source path
+        :raises InvalidEnumError
         """
         configPath: Path
         if inConfigType is ConfigType.JSON:
@@ -127,31 +131,36 @@ class SmartGitConfig(BaseSettings):
         elif inConfigType is ConfigType.DOTENV:
             configPath = self.__mConfigDotEnvPath
         else:
-            raise Exception(f'Unknown configuration type: {inConfigType}')
+            raise InvalidEnumError(inConfigType)
 
         return None if isNoneOrEmpty(configPath) else configPath.resolve().absolute()
 
     def get_project_config(self, inProjectName: str) -> Optional[ProjectConfig]:
         """
         Retrieves the associated Project config from the Project name
+
         :param inProjectName: The Project name
+        :raises NoneOrEmptyValueError
         """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inProjectName):
-            raise ValueError(f'{inProjectName=} can not be None or empty')
+            raise NoneOrEmptyValueError('ProjectName')
 
         return self.projects.get(inProjectName.strip())
 
     def get_repo_config(self, inRepoName: str) -> Optional[RepoConfig]:
         """
         Retrieves the associated Repo config from the Repo name
+
         :param inRepoName: The Repo name
+        :raises NoneOrEmptyValueError
+        :raises OperationError
         """
         LOGGER.entrance()
 
         if isNoneOrEmpty(inRepoName):
-            raise ValueError(f'{inRepoName=} can not be None or empty')
+            raise NoneOrEmptyValueError('RepoName')
 
         inRepoName = inRepoName.strip()
         repoConfig: Optional[RepoConfig] = None
@@ -168,7 +177,7 @@ class SmartGitConfig(BaseSettings):
                     matchProject = name
                     repoConfig = projectConfig.repos.get(inRepoName)
                 else:
-                    raise Exception(
+                    raise OperationError(
                         f'Can not determine the repository config source. '
                         f'As {inRepoName} is not specified in the global `repos`, '
                         f'but in multiple projects: {matchProject, name}'

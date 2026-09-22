@@ -10,8 +10,8 @@ from typer import Argument, Context, Option
 
 from smartgit.app.cli.apps import CLI_APP_REPO
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME
-from smartgit.config import ConfigType, SmartGitConfig
 from smartgit.config import Properties, RepoConfig
+from smartgit.config import SmartGitConfig
 from smartgit.core import SmartRepo
 from smartgit.utils import getSmartLogger, isNoneOrEmpty
 
@@ -51,21 +51,21 @@ def create_branch(
     repo_name: Annotated[
         Optional[str],
         Option(
-            '--repo', '-r',
+            '--repo',
             help='Name of the repo. Defaults to the name of CWD'
         )
     ] = None,
     should_push: Annotated[
         bool,
         Option(
-            '--push',
+            '--push/--no-push',
             help='Pushes the new branch to the remote'
         )
     ] = False,
     remote: Annotated[
         Optional[str],
         Option(
-            '--remote',
+            '--remote', '-r',
             help='Name of the remote'
         )
     ] = None,
@@ -92,7 +92,7 @@ def delete_branch(
     repo_name: Annotated[
         Optional[str],
         Option(
-            '--repo', '-r',
+            '--repo',
             help='Name of the repo. Defaults to the name of CWD'
         )
     ] = None,
@@ -106,14 +106,14 @@ def delete_branch(
     force: Annotated[
         bool,
         Option(
-            '--force',
+            '--force/--no-force',
             help='Forces deletion of the local branch'
         )
     ] = False,
     remote: Annotated[
         Optional[str],
         Option(
-            '--remote',
+            '--remote', '-r',
             help='Name of the remote'
         )
     ] = None,
@@ -136,21 +136,21 @@ def pull(
     repo_name: Annotated[
         Optional[str],
         Option(
-            '--repo', '-r',
+            '--repo',
             help='Name of the repo. Defaults to the name of CWD'
         )
     ] = None,
     branch: Annotated[
         Optional[str],
         Option(
-            '--branch',
+            '--branch', '-b',
             help='Branch name to pull. Defaults to the active branch when omitted'
         )
     ] = None,
     remote: Annotated[
         Optional[str],
         Option(
-            '--remote',
+            '--remote', '-r',
             help='Name of the remote'
         )
     ] = None,
@@ -175,11 +175,12 @@ def init(
     branch: Annotated[
         Optional[str],
         Option(
-            '--branch',
+            '--branch', '-b',
             help='Branch to switch to after initialization'
         )
     ] = None,
 ):
+    # TODO: Fix branch usage
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
