@@ -9,6 +9,7 @@ from typing import Annotated, Optional
 
 from typer import Argument, Context, Option
 
+from smartgit.app.cli._Reporting import report_results
 from smartgit.app.cli.apps import CLI_APP_PROJECT
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME
 from smartgit.config import SmartGitConfig
@@ -56,10 +57,11 @@ async def fetch(
 
     config: SmartGitConfig = ctx.obj['config']
     smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
-    await smartProject.afetch(
+    results = await smartProject.afetch(
         inRemote=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
         inSkipTags=not fetch_tags
     )
+    report_results(ctx, results)
 
 
 @CLI_APP_PROJECT.command('prune')
@@ -97,7 +99,8 @@ async def prune(
 
     config: SmartGitConfig = ctx.obj['config']
     smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
-    await smartProject.aprune(inPruneBranches=prune_branches, inPruneTags=prune_tags)
+    results = await smartProject.aprune(inPruneBranches=prune_branches, inPruneTags=prune_tags)
+    report_results(ctx, results)
 
 
 @CLI_APP_PROJECT.command('pull')
@@ -127,10 +130,11 @@ async def pull(
 
     config: SmartGitConfig = ctx.obj['config']
     smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
-    await smartProject.apull(
+    results = await smartProject.apull(
         inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
         inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else smartProject.properties.GIT_DEFAULT_REMOTE,
     )
+    report_results(ctx, results)
 
 
 @CLI_APP_PROJECT.command('init')
@@ -152,9 +156,9 @@ async def init(
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
-    smartProject: SmartProject = await SmartProject.from_config_async(inProjectName=project, inConfig=config)
-    await SmartProject.asmart_init(
-        inProjectName=smartProject.name,
-        inProjectConfig=smartProject.config,
+    smartProject: SmartProject = await SmartProject.from_config_async(
+        inProjectName=project,
+        inConfig=config,
         inBranch=str(branch).strip() if not isNoneOrEmpty(branch) else None,
     )
+    report_results(ctx, smartProject.init_results)

@@ -71,3 +71,63 @@ class OperationError(SmartGitError):
 
 class InvalidOperationError(OperationError):
     pass
+
+
+class RepoOperationError(OperationError):
+    """
+    Represents a failed repository operation
+    Wraps the native/domain root cause with the context (repo, path, branch, operation) it failed in
+    """
+
+    def __init__(
+        self,
+        inCause: BaseException,
+        inOperation: str,
+        inRepoName: str,
+        inRepoPath: str,
+        inBranch: str | None = None,
+        inCommand: str | None = None,
+    ) -> None:
+        """
+        Initializes the RepoOperationError with the root cause and the context of the failure
+
+        :param inCause:         Native/domain exception that caused the failure
+        :param inOperation:     Name of the operation that failed (e.g. pull, fetch)
+        :param inRepoName:      Name of the repository the operation failed on
+        :param inRepoPath:      Path of the repository the operation failed on
+        :param inBranch:        [Optional] Branch the operation failed on. Defaults to None (unknown)
+        :param inCommand:       [Optional] Git command being executed at the failure. Defaults to None
+        """
+        self.cause: BaseException = inCause
+        self.operation: str = inOperation
+        self.repo_name: str = inRepoName
+        self.repo_path: str = inRepoPath
+        self.branch: str | None = inBranch
+        self.command: str | None = inCommand
+
+        super().__init__(self._format())
+        self.__cause__ = inCause
+
+    @property
+    def cause_type(self) -> str:
+        return type(self.cause).__name__
+
+    @property
+    def cause_message(self) -> str:
+        # Some native errors (e.g. TimeoutError) have an empty message
+        return str(self.cause).strip() or self.cause_type
+
+    def _format(self) -> str:
+        """
+        Formats the context and the root cause as a single message
+        """
+        context = [f'path: {self.repo_path}']
+        if not isNoneOrEmptyStr(self.branch):
+            context.insert(0, f'branch: {self.branch}')
+        if not isNoneOrEmptyStr(self.command):
+            context.append(f'command: {self.command}')
+
+        return (
+            f'`{self.operation}` failed for repo `{self.repo_name}` ({', '.join(context)})\n'
+            f'{self.cause_type}: {self.cause_message}'
+        )

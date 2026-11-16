@@ -9,13 +9,17 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
-from git.exc import GitError
 from pydantic import ValidationError
 from typer import Context, Option
 
 from smartgit.app.cli.apps import CLI_APP
 from smartgit.app.cli.command import _Config, _Project, _Repo
-from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME, SG_VAL_CORE_LOGGER_NAME, SG_VAL_LOG_LEVEL_OFF
+from smartgit.common.constants import (
+    SG_VAL_CLI_LOGGER_NAME,
+    SG_VAL_CORE_LOGGER_NAME,
+    SG_VAL_EXIT_CODE_OPERATION_FAILED,
+    SG_VAL_LOG_LEVEL_OFF,
+)
 from smartgit.common.errors import SmartGitError, SmartGitInternalError
 from smartgit.config import SmartGitConfigLoader
 from smartgit.utils import configSmartLogger, getSmartLogger
@@ -67,31 +71,33 @@ def main_callback(
 
     ctx.ensure_object(dict)
     ctx.obj['config'] = SmartGitConfigLoader().load(inJSONConfigPath=config_path)
+    ctx.obj['quiet'] = quiet
 
 
 def main() -> None:
     """
     SmartGit CLI entrypoint
+
+    Operational (per repository) failures never reach here, they are returned as results by SmartGit and
+    rendered by the commands (see report_results). This is only the boundary for the failures outside of
+    the repository operations: invalid configuration/input and internal errors.
     """
     LOGGER = getSmartLogger(SG_VAL_CLI_LOGGER_NAME)
     try:
         asyncio.run(CLI_APP())
+        return
     except SmartGitInternalError as error:
         LOGGER.debug(error, exc_info=True, stack_info=True)
-        typer.echo(error.display_message, err=True)
+        message = error.display_message
     except SmartGitError as error:
         LOGGER.debug(error, exc_info=True, stack_info=True)
-        typer.echo(f'Error: {error}', err=True)
+        message = f'Error: {error}'
     except ValidationError as error:
         LOGGER.debug(error, exc_info=True, stack_info=True)
-        typer.echo(f'Error: {error}', err=True)
-    except GitError as error:
-        LOGGER.debug(error, exc_info=True, stack_info=True)
-        typer.echo(f'Error: {error}', err=True)
+        message = f'Error: {error}'
     except Exception as error:
         LOGGER.debug(error, exc_info=True, stack_info=True)
-        typer.echo(
-            f'Unexpected Error: {error}, '
-            f'Please report this issue to the SmartGit team',
-            err=True
-        )
+        message = f'Unexpected Error: {error}, Please report this issue to the SmartGit team'
+
+    typer.echo(message, err=True)
+    raise SystemExit(SG_VAL_EXIT_CODE_OPERATION_FAILED)

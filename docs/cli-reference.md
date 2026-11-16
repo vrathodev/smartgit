@@ -42,6 +42,28 @@ Project commands dispatch to every repository in the project concurrently via `a
 `SmartProject.afetch`/`aprune`/`apull` in `smartgit.core`), so the command's total time tracks the slowest repo
 rather than the sum of all of them.
 
+### Results and exit codes
+
+Every repository reports its own result, and a failure in one repository
+(network timeout, OS error, Git error, clone failure) does not cancel the others in batched async operations.
+On the batch execution completion, the command prints a per-repository summary and
+the failures with their context (operation, repository, branch, path, Git command, root cause) — no stack traces.
+
+```text
+[ OK ] repo-a: pull (main)
+[FAIL] `pull` failed for repo `repo-b` (branch: main, path: C:\ws\repo-b, command: git pull --no-tags origin main)
+       GitCommandError: Cmd('git') failed due to: exit code(1) ...
+Summary: 1 succeeded, 1 failed
+```
+
+| Exit code | Meaning                                                                                       |
+|-----------|-----------------------------------------------------------------------------------------------|
+| `0`       | Every repository operation succeeded.                                                         |
+| `1`       | At least one repository operation failed, or the configuration/input was invalid.             |
+
+With `--quiet`, only the failures are printed. The full stack trace of a failure is written to the log (`-vvv` or the
+log file), not to the console.
+
 ## `smartgit config` — inspect the resolved configuration
 
 ```bash

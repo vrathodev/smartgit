@@ -4,12 +4,14 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Callable, Optional, Tuple
 
 from typer import Argument, Context, Option
 
+from smartgit.app.cli._Reporting import report_results
 from smartgit.app.cli.apps import CLI_APP_REPO
 from smartgit.common.constants import SG_VAL_CLI_LOGGER_NAME
+from smartgit.common.results import OperationResult
 from smartgit.config import Properties, RepoConfig
 from smartgit.config import SmartGitConfig
 from smartgit.core import SmartRepo
@@ -19,14 +21,16 @@ from smartgit.utils import getSmartLogger, isNoneOrEmpty
 LOGGER = getSmartLogger(SG_VAL_CLI_LOGGER_NAME)
 
 
-def resolve_repo(inRepoName: str, inConfig: SmartGitConfig) -> SmartRepo:
+def resolve_repo(inRepoName: str, inConfig: SmartGitConfig) -> Tuple[Optional[SmartRepo], OperationResult]:
     """
     Resolves the SmartRepo instance from the CLI optional for repo name
+
+    :returns: Tuple of (SmartRepo or None if it failed to initialize, result of the initialization)
     """
     LOGGER.entrance()
 
     if not isNoneOrEmpty(inRepoName):
-        return SmartRepo.from_config(inRepoName, inConfig)
+        return SmartRepo.try_from_config(inRepoName, inConfig)
 
     # Repo is NOT configured
     CWD = Path.cwd().resolve().absolute()
@@ -34,7 +38,21 @@ def resolve_repo(inRepoName: str, inConfig: SmartGitConfig) -> SmartRepo:
     repoConfig: RepoConfig = RepoConfig(properties=Properties(GIT_ROOT=CWD.parent))
 
     # Current Repo operations are intended to be sync
-    return SmartRepo.smart_init(repoName, repoConfig)
+    return SmartRepo.try_init(repoName, repoConfig)
+
+
+def run_on_repo(
+    inContext: Context,
+    inRepoName: Optional[str],
+    inOperation: Callable[[SmartRepo], OperationResult]
+) -> None:
+    """
+    Resolves the repo, runs the operation on it and reports the result (exits non-zero on failure)
+    """
+    LOGGER.entrance()
+
+    repo, initResult = resolve_repo(inRepoName, inContext.obj['config'])
+    report_results(inContext, [initResult if repo is None else inOperation(repo)])
 
 
 @CLI_APP_REPO.command('create-branch')
@@ -72,13 +90,15 @@ def create_branch(
 ):
     LOGGER.entrance()
 
-    config: SmartGitConfig = ctx.obj['config']
-    repo: SmartRepo = resolve_repo(repo_name, config)
-    repo.create_branch(
-        inBranchName=branch,
-        inStartPoint=create_from,
-        inPushRemote=should_push,
-        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+    run_on_repo(
+        ctx,
+        repo_name,
+        lambda repo: repo.create_branch(
+            inBranchName=branch,
+            inStartPoint=create_from,
+            inPushRemote=should_push,
+            inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+        )
     )
 
 
@@ -120,13 +140,15 @@ def delete_branch(
 ):
     LOGGER.entrance()
 
-    config: SmartGitConfig = ctx.obj['config']
-    repo: SmartRepo = resolve_repo(repo_name, config)
-    repo.delete_branch(
-        inBranchName=branch,
-        inFromRemote=from_remote,
-        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
-        inForce=force,
+    run_on_repo(
+        ctx,
+        repo_name,
+        lambda repo: repo.delete_branch(
+            inBranchName=branch,
+            inFromRemote=from_remote,
+            inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+            inForce=force,
+        )
     )
 
 
@@ -157,11 +179,13 @@ def pull(
 ):
     LOGGER.entrance()
 
-    config: SmartGitConfig = ctx.obj['config']
-    repo: SmartRepo = resolve_repo(repo_name, config)
-    repo.pull(
-        inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
-        inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+    run_on_repo(
+        ctx,
+        repo_name,
+        lambda repo: repo.pull(
+            inBranchName=str(branch).strip() if not isNoneOrEmpty(branch) else None,
+            inRemoteName=str(remote).strip() if not isNoneOrEmpty(remote) else repo.properties.GIT_DEFAULT_REMOTE,
+        )
     )
 
 
@@ -184,4 +208,5 @@ def init(
     LOGGER.entrance()
 
     config: SmartGitConfig = ctx.obj['config']
-    repo: SmartRepo = resolve_repo(repo_name, config)
+    _, initResult = resolve_repo(repo_name, config)
+    report_results(ctx, [initResult])

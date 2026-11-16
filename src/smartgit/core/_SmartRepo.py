@@ -4,11 +4,12 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 import asyncio
+import contextlib
 import os
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Coroutine, FrozenSet, Generator, List, Optional, Self
+from typing import Any, Callable, Coroutine, FrozenSet, Generator, List, Optional, Self, Tuple
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
@@ -19,7 +20,9 @@ from smartgit.common.errors import (
     InvalidValueError,
     NoneOrEmptyValueError,
     OperationError,
+    SmartGitError,
 )
+from smartgit.common.results import FailureResult, OperationContext, OperationResult, SuccessResult
 from smartgit.common.types import SmartPath
 from smartgit.config import ConfigType
 from smartgit.config import Properties, RepoConfig, SmartGitConfig
@@ -126,23 +129,30 @@ class SmartRepo(Repo):
             cwd=self.path
         )
 
-        while True:
-            output: bytes = await process.stdout.readline()
-            outputStr: str = output.decode().strip()
-            if isNoneOrEmpty(outputStr):
-                LOGGER.debug('Empty output received for above command')
-                break
-            else:
-                LOGGER.debug('Output:')
-                LOGGER.debug(outputStr)
+        try:
+            while True:
+                output: bytes = await process.stdout.readline()
+                outputStr: str = output.decode().strip()
+                if isNoneOrEmpty(outputStr):
+                    LOGGER.debug('Empty output received for above command')
+                    break
+                else:
+                    LOGGER.debug('Output:')
+                    LOGGER.debug(outputStr)
 
-        returnCode: int = await process.wait()
-        if returnCode != 0:
-            error: bytes = await process.stderr.read()
-            errorStr: str = error.decode().strip()
-            LOGGER.error(f'Error (RC {returnCode}):')
-            LOGGER.error(errorStr)
-            raise GitCommandError(' '.join(command), returnCode, errorStr)
+            returnCode: int = await process.wait()
+            if returnCode != 0:
+                error: bytes = await process.stderr.read()
+                errorStr: str = error.decode().strip()
+                LOGGER.debug(f'Error (RC {returnCode}):')
+                LOGGER.debug(errorStr)
+                raise GitCommandError(' '.join(command), returnCode, errorStr)
+        finally:
+            # Never leave an orphaned subprocess behind (failed read/decode or task cancellation)
+            if process.returncode is None:
+                with contextlib.suppress(ProcessLookupError):
+                    process.kill()
+                await process.wait()
 
     def _create_branch(
         self,
@@ -215,12 +225,14 @@ class SmartRepo(Repo):
         inStartPoint: str,
         inPushRemote: bool = False,
         inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT
-    ):
+    ) -> OperationResult:
         LOGGER.entrance()
 
         return self._run_sync_command(
+            'create-branch',
             self._create_branch(inBranchName, inStartPoint, inPushRemote, inRemoteName),
-            self.execute
+            self.execute,
+            inBranchName
         )
 
     async def async_create_branch(
@@ -229,12 +241,14 @@ class SmartRepo(Repo):
         inStartPoint: str,
         inPushRemote: bool = False,
         inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT
-    ):
+    ) -> OperationResult:
         LOGGER.entrance()
 
         return await self._run_async_command(
+            'create-branch',
             self._create_branch(inBranchName, inStartPoint, inPushRemote, inRemoteName),
-            self.aexecute
+            self.aexecute,
+            inBranchName
         )
 
     def _delete_branch(
@@ -298,12 +312,14 @@ class SmartRepo(Repo):
         inFromRemote: bool = False,
         inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
         inForce: bool = False
-    ):
+    ) -> OperationResult:
         LOGGER.entrance()
 
         return self._run_sync_command(
+            'delete-branch',
             self._delete_branch(inBranchName, inFromRemote, inRemoteName, inForce),
-            self.execute
+            self.execute,
+            inBranchName
         )
 
     async def async_delete_branch(
@@ -312,12 +328,14 @@ class SmartRepo(Repo):
         inFromRemote: bool = False,
         inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT,
         inForce: bool = False
-    ):
+    ) -> OperationResult:
         LOGGER.entrance()
 
         return await self._run_async_command(
+            'delete-branch',
             self._delete_branch(inBranchName, inFromRemote, inRemoteName, inForce),
-            self.aexecute
+            self.aexecute,
+            inBranchName
         )
 
     def _fetch(
@@ -347,19 +365,19 @@ class SmartRepo(Repo):
         self,
         inRemote: Optional[str] = None,
         inSkipTags: bool = False
-    ):
+    ) -> OperationResult:
         LOGGER.entrance()
 
-        return self._run_sync_command(self._fetch(inRemote, inSkipTags), self.execute)
+        return self._run_sync_command('fetch', self._fetch(inRemote, inSkipTags), self.execute)
 
     async def afetch(
         self,
         inRemote: Optional[str] = None,
         inSkipTags: bool = False
-    ):
+    ) -> OperationResult:
         LOGGER.entrance()
 
-        return await self._run_async_command(self._fetch(inRemote, inSkipTags), self.aexecute)
+        return await self._run_async_command('fetch', self._fetch(inRemote, inSkipTags), self.aexecute)
 
     def _prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
         """
@@ -382,15 +400,15 @@ class SmartRepo(Repo):
             ]
         )
 
-    def prune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
+    def prune(self, inPruneBranches: bool = False, inPruneTags: bool = False) -> OperationResult:
         LOGGER.entrance()
 
-        return self._run_sync_command(self._prune(inPruneBranches, inPruneTags), self.execute)
+        return self._run_sync_command('prune', self._prune(inPruneBranches, inPruneTags), self.execute)
 
-    async def aprune(self, inPruneBranches: bool = False, inPruneTags: bool = False):
+    async def aprune(self, inPruneBranches: bool = False, inPruneTags: bool = False) -> OperationResult:
         LOGGER.entrance()
 
-        return await self._run_async_command(self._prune(inPruneBranches, inPruneTags), self.aexecute)
+        return await self._run_async_command('prune', self._prune(inPruneBranches, inPruneTags), self.aexecute)
 
     def _pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
         """
@@ -409,7 +427,7 @@ class SmartRepo(Repo):
             try:
                 LOGGER.info(f'Specified branch is None or empty. Using {self.active_branch.name} to sync.')
                 inBranchName = self.active_branch.name
-            except TypeError | ValueError as error:
+            except (TypeError, ValueError) as error:
                 raise OperationError(
                     f'Detached/Invalid HEAD state detected for Repo {self.name}, '
                     f'Can not pull. Fix the repo state and try again.'
@@ -442,21 +460,52 @@ class SmartRepo(Repo):
         )
         LOGGER.info(f'Pulled {inBranchName} successfully from {inRemoteName}')
 
-    def pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
+    def pull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT) -> OperationResult:
         LOGGER.entrance()
 
         return self._run_sync_command(
+            'pull',
             self._pull(inBranchName, inRemoteName),
-            self.execute
+            self.execute,
+            inBranchName
         )
 
-    async def apull(self, inBranchName: str = None, inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT):
+    async def apull(
+        self,
+        inBranchName: str = None,
+        inRemoteName: str = SG_VAL_REMOTE_NAME_DEFAULT
+    ) -> OperationResult:
         LOGGER.entrance()
 
         return await self._run_async_command(
+            'pull',
             self._pull(inBranchName, inRemoteName),
-            self.aexecute
+            self.aexecute,
+            inBranchName
         )
+
+    @classmethod
+    def _resolve_repo_config(cls, inRepoName: str, inConfig: SmartGitConfig) -> Tuple[str, RepoConfig]:
+        """
+        Resolves the configuration for the given repository name
+
+        :param inRepoName:  Name of the repository
+        :param inConfig:    SmartGit Master Configuration instance
+        :returns: Tuple of (stripped repository name, repository configuration)
+        :raises InvalidConfigError
+        :raises NoneOrEmptyValueError
+        """
+        if isNoneOrEmpty(inRepoName):
+            raise NoneOrEmptyValueError('RepoName')
+
+        inRepoName = inRepoName.strip()
+        repoConfig: Optional[RepoConfig] = inConfig.get_repo_config(inRepoName)
+        if isNoneOrEmpty(repoConfig):
+            raise InvalidConfigError(
+                f'Repo {inRepoName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
+            )
+
+        return inRepoName, repoConfig
 
     @classmethod
     def from_config(cls, inRepoName: str, inConfig: SmartGitConfig) -> Self:
@@ -471,17 +520,27 @@ class SmartRepo(Repo):
         """
         LOGGER.entrance()
 
-        if isNoneOrEmpty(inRepoName):
-            raise NoneOrEmptyValueError('RepoName')
-
-        inRepoName = inRepoName.strip()
-        repoConfig: Optional[RepoConfig] = inConfig.get_repo_config(inRepoName)
-        if isNoneOrEmpty(repoConfig):
-            raise InvalidConfigError(
-                f'Repo {inRepoName} is not configured in {str(inConfig.get_config_source(ConfigType.JSON))}'
-            )
+        inRepoName, repoConfig = cls._resolve_repo_config(inRepoName, inConfig)
 
         return cls.smart_init(inRepoName=inRepoName, inRepoConfig=repoConfig)
+
+    @classmethod
+    def try_from_config(cls, inRepoName: str, inConfig: SmartGitConfig) -> Tuple[Optional[Self], OperationResult]:
+        """
+        Initializes a SmartRepo from the configuration for the given repository name, without raising for
+        failures of the repository initialization itself (e.g. clone failure)
+
+        :param inRepoName:  Name of the repository
+        :param inConfig:    SmartGit Master Configuration instance
+        :returns: Tuple of (initialized SmartRepo or None on failure, result of the initialization)
+        :raises InvalidConfigError: If the repository is not configured
+        :raises NoneOrEmptyValueError
+        """
+        LOGGER.entrance()
+
+        inRepoName, repoConfig = cls._resolve_repo_config(inRepoName, inConfig)
+
+        return cls.try_init(inRepoName=inRepoName, inRepoConfig=repoConfig)
 
     @classmethod
     def is_valid(cls, inRepoPath: Path) -> bool:
@@ -581,38 +640,164 @@ class SmartRepo(Repo):
             inBranch
         )
 
+    @classmethod
+    def try_init(
+        cls,
+        inRepoName: str,
+        inRepoConfig: RepoConfig,
+        inBranch: str = None,
+    ) -> Tuple[Optional[Self], OperationResult]:
+        """
+        Initializes a SmartRepo (see smart_init) without raising for the failures of the initialization
+        (e.g. clone failure, branch switch failure, submodule failure)
+
+        :param inRepoName:          Name of the Repository
+        :param inRepoConfig:        Configuration of the Repository
+        :param inBranch:            Branch to check out (optional)
+                                    Defaults to remote and local HEAD, for new and existing repositories respectively
+        :returns: Tuple of (initialized SmartRepo or None on failure, result of the initialization)
+        :raises NoneOrEmptyValueError
+        """
+        LOGGER.entrance()
+
+        if isNoneOrEmpty(inRepoName):
+            raise NoneOrEmptyValueError('RepoName')
+        if isNoneOrEmpty(inRepoConfig):
+            raise NoneOrEmptyValueError('RepoConfig')
+
+        inRepoName = inRepoName.strip()
+        context = OperationContext(
+            operation='init',
+            repo_name=inRepoName,
+            repo_path=str(convertToPath(inRepoConfig.properties.GIT_ROOT) / inRepoName),
+            branch=str(inBranch).strip() if not isNoneOrEmpty(inBranch) else None,
+        )
+
+        try:
+            return cls.smart_init(inRepoName, inRepoConfig, inBranch), SuccessResult(context=context)
+        except (Exception, SmartGitError) as error:
+            LOGGER.debug(f'Initialization of {inRepoName} failed', exc_info=error)
+            return None, FailureResult.from_exception(error, context)
+
+    @classmethod
+    async def atry_init(
+        cls,
+        inRepoName: str,
+        inRepoConfig: RepoConfig,
+        inBranch: str = None,
+    ) -> Tuple[Optional[Self], OperationResult]:
+        return await asyncio.to_thread(
+            cls.try_init,
+            inRepoName,
+            inRepoConfig,
+            inBranch
+        )
+
+    def _operation_context(
+        self,
+        inOperation: str,
+        inBranch: Optional[str] = None,
+        inCommand: Optional[GitCMD] = None
+    ) -> OperationContext:
+        """
+        Creates the context of an operation on this repository
+
+        :param inOperation: Name of the operation
+        :param inBranch:    [Optional] Branch of the operation, defaults to the active branch when unknown
+        :param inCommand:   [Optional] Git command being executed
+        """
+        if isNoneOrEmpty(inBranch):
+            try:
+                inBranch = self.active_branch.name
+            except Exception:
+                # Detached HEAD or unreadable repo state, branch is reported as unknown
+                inBranch = None
+
+        return OperationContext(
+            operation=inOperation,
+            repo_name=self.name,
+            repo_path=str(self.path),
+            branch=str(inBranch).strip() if not isNoneOrEmpty(inBranch) else None,
+            command=' '.join(inCommand.args) if inCommand is not None else None,
+        )
+
+    def _failure_result(
+        self,
+        inError: BaseException,
+        inOperation: str,
+        inBranch: Optional[str],
+        inCommand: Optional[GitCMD]
+    ) -> FailureResult:
+        """
+        Converts the error raised by an operation into a FailureResult enriched with this repository's context
+        """
+        # Full trace is kept for the log only, the CLI renders the context-rich result instead
+        LOGGER.debug(f'Operation {inOperation} failed for {self.name}', exc_info=inError)
+
+        return FailureResult.from_exception(inError, self._operation_context(inOperation, inBranch, inCommand))
+
     def _run_sync_command(
         self,
+        inOperation: str,
         inSteps: Generator[GitCMD, str, Any],
-        inExecutor: Callable[[List[str]], None]
-    ) -> Any:
+        inExecutor: Callable[[List[str]], None],
+        inBranch: Optional[str] = None
+    ) -> OperationResult:
         """
         Synchronous runner to execute given Git commands
+
+        Containment boundary: expected errors (native OS, Git and SmartGit errors) never propagate out of the
+        runner, they are returned as FailureResult instead. Cancellation (BaseException) is NOT swallowed.
+
+        :param inOperation: Name of the operation being executed
         :param inSteps: Generator yielding GitCMD instances
         :param inExecutor: Callable to execute the Git command
+        :param inBranch: [Optional] Branch the operation targets, defaults to the active branch when unknown
+        :returns: SuccessResult if all the commands completed, FailureResult otherwise
         """
+        # Command being executed, None when the failure is not raised by an executing command
+        command: Optional[GitCMD] = None
         try:
-            command: GitCMD = next(inSteps)
+            command = next(inSteps)
             while True:
                 result = inExecutor(list(command.args))
+                # Executed, errors raised by the generator past this point are not caused by this command
+                command = None
                 command = inSteps.send(result)
-        except StopIteration as completed:
-            return completed.value
+        except StopIteration:
+            return SuccessResult(context=self._operation_context(inOperation, inBranch))
+        except (Exception, SmartGitError) as error:
+            return self._failure_result(error, inOperation, inBranch, command)
 
     async def _run_async_command(
         self,
+        inOperation: str,
         inSteps: Generator[GitCMD, str, Any],
-        inExecutor: Callable[[List[str]], Coroutine[Any, Any, None]]
-    ) -> Any:
+        inExecutor: Callable[[List[str]], Coroutine[Any, Any, None]],
+        inBranch: Optional[str] = None
+    ) -> OperationResult:
         """
         Asynchronous runner to execute given Git commands
+
+        Containment boundary: expected errors (native OS, Git and SmartGit errors) never propagate out of the
+        runner, they are returned as FailureResult instead. Cancellation (BaseException) is NOT swallowed.
+
+        :param inOperation: Name of the operation being executed
         :param inSteps: Generator yielding GitCMD instances
         :param inExecutor: Async callable to execute the Git command
+        :param inBranch: [Optional] Branch the operation targets, defaults to the active branch when unknown
+        :returns: SuccessResult if all the commands completed, FailureResult otherwise
         """
+        # Command being executed, None when the failure is not raised by an executing command
+        command: Optional[GitCMD] = None
         try:
-            command: GitCMD = next(inSteps)
+            command = next(inSteps)
             while True:
                 result = await inExecutor(list(command.args))
+                # Executed, errors raised by the generator past this point are not caused by this command
+                command = None
                 command = inSteps.send(result)
-        except StopIteration as completed:
-            return completed.value
+        except StopIteration:
+            return SuccessResult(context=self._operation_context(inOperation, inBranch))
+        except (Exception, SmartGitError) as error:
+            return self._failure_result(error, inOperation, inBranch, command)

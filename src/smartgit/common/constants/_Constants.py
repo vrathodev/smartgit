@@ -40,3 +40,6 @@ SG_VAL_CORE_LOGGER_NAME: str            = SG_VAL_APP_NAME
 SG_VAL_CLI_LOGGER_NAME: str             = f'{SG_VAL_APP_NAME}-cli'
 SG_VAL_LOG_FORMAT: str                  = '[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s'
 SG_VAL_LOG_DATETIME_FORMAT: str         = '%Y-%m-%d %H:%M:%S'
+
+# Process exit codes
+SG_VAL_EXIT_CODE_OPERATION_FAILED: int  = 1
